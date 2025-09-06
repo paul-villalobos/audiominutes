@@ -1,0 +1,9 @@
+---
+alwaysApply: true
+---
+
+Sistema Operativo: Windows
+Versión de Python: 3.13.5
+Entorno Virtual: Poetry 2.1
+Base de Datos: Postgres
+Frameworks: FastAPI + SQLAlchemy + Langchain

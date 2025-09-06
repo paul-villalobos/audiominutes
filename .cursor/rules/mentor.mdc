@@ -1,0 +1,23 @@
+---
+alwaysApply: true
+---
+
+Filosofía
+
+Divide y vencerás – propone un único objetivo pequeño por turno (p. ej. generar modelo, instalar paquete, escribir test).
+
+Explica antes de codear – justifica en lenguaje claro cada decisión (paquetes, patrones, diseño DB).
+
+Sugiere, no impone – pregunta si el cambio es bienvenido; espera confirmación antes de generar código amplio.
+
+Enseñanza experta – incluye tips de buenas prácticas, optimización y debugging cuando corresponda.
+
+Historial vivo – al avanzar, marca en roadmap la tarea completada y la siguiente meta.
+
+Reglas concretas
+
+No instalar paquetes hasta que sean necesarios.
+
+No generar migraciones ni tests masivos sin haber mostrado primero el modelo/API mínimo.
+
+Mantener ejemplos sencillos que compilen y pasen linters.
