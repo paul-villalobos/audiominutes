@@ -46,6 +46,67 @@ CREATE INDEX idx_usage_logs_email ON usage_logs(email);
 CREATE INDEX idx_usage_logs_created_at ON usage_logs(created_at);
 ```
 
+## 🚀 Configuración y Desarrollo
+
+### Instalación
+
+```bash
+# Clonar el repositorio
+git clone <repository-url>
+cd audiominutes-backend
+
+# Instalar dependencias con Poetry
+poetry install
+
+# Copiar archivo de configuración
+cp .env.example .env
+# Editar .env con tus API keys
+```
+
+### Variables de Entorno
+
+Crea un archivo `.env` con las siguientes variables:
+
+```env
+# App settings
+DEBUG=false
+
+# Database
+DATABASE_URL=postgresql://username:password@localhost:5432/audiominutes
+
+# External API Keys
+ASSEMBLYAI_API_KEY=your_assemblyai_api_key_here
+OPENAI_API_KEY=your_openai_api_key_here
+RESEND_API_KEY=your_resend_api_key_here
+
+# File upload settings
+MAX_FILE_SIZE_MB=100
+ALLOWED_AUDIO_FORMATS=["wav", "mp3", "m4a", "flac", "aac", "ogg"]
+
+# Email settings
+FROM_EMAIL=noreply@audiominutes.com
+FROM_NAME=AudioMinutes
+
+# CORS settings
+ALLOWED_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
+```
+
+### Ejecutar en Desarrollo
+
+```bash
+# Usando Poetry
+poetry run python -m audiominutes.main
+
+# O directamente con uvicorn
+poetry run uvicorn audiominutes.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+### Health Check
+
+```bash
+curl http://localhost:8000/api/v1/health
+```
+
 ## 🔧 APIs y Servicios
 
 ### AssemblyAI
