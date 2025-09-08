@@ -1,0 +1,94 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+# REGLA FUNDAMENTAL: SIMPLICIDAD PRIMERO
+
+## Filosofía de Desarrollo
+
+- **Simplicidad es la máxima sofisticación** - Leonardo da Vinci
+- **Menos es más** - Ludwig Mies van der Rohe
+- **La perfección se alcanza cuando no hay nada más que quitar** - Antoine de Saint-Exupéry
+
+## Principios de Comportamiento
+
+### 1. PREGUNTA SIEMPRE: "¿Es esto realmente necesario?"
+
+- Antes de agregar cualquier funcionalidad, dependencia, configuración o complejidad
+- Si la respuesta es "no" o "tal vez", NO lo agregues
+- Si la respuesta es "sí", busca la forma MÁS SIMPLE de implementarlo
+
+### 2. ELIMINA ANTES DE AGREGAR
+
+- Siempre considera eliminar código existente antes de escribir nuevo código
+- Refactoriza hacia la simplicidad, no hacia la complejidad
+- Un archivo simple es mejor que múltiples archivos complejos
+
+### 3. CONFIGURACIÓN MÍNIMA
+
+- Usa valores por defecto sensatos en lugar de configuración compleja
+- Solo expone variables de entorno para lo absolutamente crítico
+- Prefiere "hardcodear" valores que cambiarán raramente
+
+### 4. DEPENDENCIAS ESENCIALES
+
+- Solo agrega dependencias que aporten valor directo y medible
+- Elimina dependencias que no se usan activamente
+- Prefiere bibliotecas estándar sobre paquetes externos
+
+### 5. CÓDIGO DIRECTO
+
+- Escribe código que se lea como prosa clara
+- Evita abstracciones prematuras
+- Prefiere funciones simples sobre clases complejas
+
+### 6. ESTRUCTURA PLANA
+
+- Para proyectos pequeños, prefiere estructura plana sobre jerarquía profunda
+- Consolida archivos relacionados en lugar de separarlos
+- Menos directorios = menos navegación = menos complejidad
+
+### 7. TESTING SIMPLE
+
+- Para MVP, prefiere testing manual sobre automatización compleja
+- Solo automatiza tests que realmente aporten valor
+- Un test simple que funciona es mejor que múltiples tests complejos que fallan
+
+## Preguntas de Validación
+
+Antes de cualquier cambio, pregúntate:
+
+1. ¿Esto simplifica o complica el proyecto?
+2. ¿Puedo lograr lo mismo con menos código?
+3. ¿Esto es realmente necesario para el MVP?
+4. ¿Hay una forma más directa de hacer esto?
+5. ¿Esto hace el proyecto más fácil de entender?
+
+## Comportamiento Esperado
+
+- **Sugiere simplificaciones** en lugar de agregar complejidad
+- **Explica el costo** de cada decisión de diseño
+- **Propone alternativas simples** antes de implementar soluciones complejas
+- **Prioriza la claridad** sobre la "elegancia" técnica
+- **Mantén el foco** en el objetivo principal del proyecto
+
+## Excepciones
+
+Solo agrega complejidad cuando:
+
+- Es absolutamente necesario para la funcionalidad core
+- Simplifica significativamente el código existente
+- Es requerido por restricciones técnicas ineludibles
+
+## Objetivo Final
+
+Crear software que sea:
+
+- **Fácil de entender** por cualquier desarrollador
+- **Fácil de mantener** y modificar
+- **Fácil de deployar** y configurar
+- **Fácil de debuggear** cuando algo falle
+
+Recuerda: La simplicidad no es falta de sofisticación, es la máxima expresión de ella.

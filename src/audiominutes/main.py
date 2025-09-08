@@ -4,8 +4,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from audiominutes.core.config import settings
-from audiominutes.api import health
+from audiominutes.config import settings
+from audiominutes.api import router as health_router
 
 
 def create_app() -> FastAPI:
@@ -22,7 +22,7 @@ def create_app() -> FastAPI:
     # Add CORS middleware
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=settings.allowed_origins,
+        allow_origins=settings.allowed_origins_list,
         allow_credentials=True,
         allow_methods=["GET", "POST"],
         allow_headers=["*"],
@@ -35,7 +35,7 @@ def create_app() -> FastAPI:
     )
     
     # Include routers
-    app.include_router(health.router, prefix="/api/v1", tags=["health"])
+    app.include_router(health_router, prefix="/api/v1", tags=["health"])
     
     return app
 

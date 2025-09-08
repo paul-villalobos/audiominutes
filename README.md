@@ -4,6 +4,19 @@
 
 AudioMinutes automatiza la transcripción de reuniones y genera actas profesionales que se envían automáticamente por email. MVP enfocado en validar tracción de usuarios con funcionalidad mínima viable.
 
+## Ejecutar aplicación:
+
+```bash
+# Opción 1: Usando el módulo Python
+poetry run python -m audiominutes.main
+
+# Opción 2: Usando uvicorn directamente
+poetry run uvicorn src.audiominutes.main:app --host 127.0.0.1 --port 8000
+
+# Opción 3: Con reload para desarrollo
+poetry run uvicorn src.audiominutes.main:app --reload --host 127.0.0.1 --port 8000
+```
+
 ## 🎯 Funcionalidades
 
 ### Core Features
