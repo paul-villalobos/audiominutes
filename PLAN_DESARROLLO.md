@@ -58,19 +58,19 @@ CREATE INDEX idx_usage_logs_created_at ON usage_logs(created_at);
 
 ### **Fase 2: API Core** ⏳
 
-#### 2.1 Estructura Básica de FastAPI ⏳ **PENDIENTE**
+#### 2.1 Estructura Básica de FastAPI ✅ **COMPLETADO**
 
-- ⏳ Crear aplicación FastAPI principal
-- ⏳ Configurar CORS y middleware básico
-- ⏳ Implementar endpoint de health check
-- ⏳ Estructurar routers y dependencias
+- ✅ Crear aplicación FastAPI principal
+- ✅ Configurar CORS y middleware básico
+- ✅ Implementar endpoint de health check
+- ✅ Estructurar routers y dependencias
 
-#### 2.2 Validación de Archivos ⏳ **PENDIENTE**
+#### 2.2 Validación de Archivos ✅ **COMPLETADO**
 
-- ⏳ Implementar validación de tipos de archivo (.wav, .mp3, .m4a)
-- ⏳ Validación de tamaño máximo de archivos
-- ⏳ Sanitización de inputs de usuario
-- ⏳ Validación de formato de email
+- ✅ Implementar validación de tipos de archivo (.wav, .mp3, .m4a)
+- ✅ Validación de tamaño máximo de archivos
+- ✅ Sanitización de inputs de usuario
+- ✅ Validación de formato de email
 
 ### **Fase 3: Integración con Servicios Externos** ⏳
 
@@ -191,11 +191,11 @@ src/audiominutes/
 
 ## 🎯 Estado Actual
 
-**Progreso General:** 16% completado
+**Progreso General:** 33% completado
 
 - ✅ **Fase 1.1:** Configurar Entorno de Desarrollo (100%)
 - ✅ **Fase 1.2:** Configurar Base de Datos (100%)
-- ⏳ **Fase 2:** API Core (0%)
+- ✅ **Fase 2:** API Core (100% - Completada)
 - ⏳ **Fase 3:** Integración con Servicios Externos (0%)
 - ⏳ **Fase 4:** Flujo Completo y Robustez (0%)
 - ⏳ **Fase 5:** Seguridad y Testing (0%)
@@ -203,12 +203,12 @@ src/audiominutes/
 
 ## 🚀 Próximo Paso
 
-**Fase 2.1: Estructura Básica de FastAPI**
+**Fase 3.1: AssemblyAI Integration**
 
-- Crear aplicación FastAPI principal
-- Configurar CORS y middleware básico
-- Implementar endpoint de health check
-- Estructurar routers y dependencias
+- Configurar cliente de AssemblyAI
+- Implementar upload de archivos de audio
+- Manejar transcripción asíncrona
+- Procesar resultados de transcripción
 
 ---
 

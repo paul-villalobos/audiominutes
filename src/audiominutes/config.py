@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # App settings (fixed for MVP)
     app_name: str = "AudioMinutes"
     app_version: str = "0.1.0"
-    debug: bool = False  # Fixed for MVP simplicity
+    debug: bool = True  # Enable docs for development
     
     # Essential API keys only
     database_url: str = Field(env="DATABASE_URL")
