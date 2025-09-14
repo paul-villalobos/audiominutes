@@ -74,12 +74,12 @@ CREATE INDEX idx_usage_logs_created_at ON usage_logs(created_at);
 
 ### **Fase 3: Integración con Servicios Externos** ⏳
 
-#### 3.1 AssemblyAI Integration ⏳ **PENDIENTE**
+#### 3.1 AssemblyAI Integration ✅ **COMPLETADO**
 
-- ⏳ Configurar cliente de AssemblyAI
-- ⏳ Implementar upload de archivos de audio
-- ⏳ Manejar transcripción asíncrona
-- ⏳ Procesar resultados de transcripción
+- ✅ Configurar cliente de AssemblyAI
+- ✅ Implementar upload de archivos de audio
+- ✅ Manejar transcripción asíncrona
+- ✅ Procesar resultados de transcripción
 
 #### 3.2 OpenAI Integration ⏳ **PENDIENTE**
 
@@ -191,24 +191,24 @@ src/audiominutes/
 
 ## 🎯 Estado Actual
 
-**Progreso General:** 33% completado
+**Progreso General:** 42% completado
 
 - ✅ **Fase 1.1:** Configurar Entorno de Desarrollo (100%)
 - ✅ **Fase 1.2:** Configurar Base de Datos (100%)
 - ✅ **Fase 2:** API Core (100% - Completada)
-- ⏳ **Fase 3:** Integración con Servicios Externos (0%)
+- ⏳ **Fase 3:** Integración con Servicios Externos (33% - AssemblyAI completado)
 - ⏳ **Fase 4:** Flujo Completo y Robustez (0%)
 - ⏳ **Fase 5:** Seguridad y Testing (0%)
 - ⏳ **Fase 6:** Deployment (0%)
 
 ## 🚀 Próximo Paso
 
-**Fase 3.1: AssemblyAI Integration**
+**Fase 3.2: OpenAI Integration**
 
-- Configurar cliente de AssemblyAI
-- Implementar upload de archivos de audio
-- Manejar transcripción asíncrona
-- Procesar resultados de transcripción
+- Configurar cliente de OpenAI
+- Crear prompt optimizado para actas profesionales
+- Implementar generación de actas
+- Manejar límites de tokens y costos
 
 ---
 
