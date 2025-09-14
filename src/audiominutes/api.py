@@ -7,7 +7,7 @@ import os
 
 from audiominutes.config import settings
 from audiominutes.utils import validate_audio_file, validate_email, sanitize_filename
-from audiominutes.services import assemblyai_service
+from audiominutes.services import assemblyai_service, openai_service
 
 
 router = APIRouter()
@@ -85,6 +85,11 @@ async def transcribe_audio(
         if not transcript:
             raise HTTPException(status_code=500, detail="Error en la transcripción")
         
+        # Generar acta profesional usando OpenAI
+        acta = openai_service.generate_minutes(transcript)
+        if not acta:
+            raise HTTPException(status_code=500, detail="Error generando acta")
+        
         # Limpiar archivo temporal
         os.unlink(temp_file_path)
         
@@ -93,6 +98,7 @@ async def transcribe_audio(
             "filename": file.filename,
             "email": email,
             "transcript": transcript,
+            "acta": acta,
             "message": "Transcripción completada"
         }
         
