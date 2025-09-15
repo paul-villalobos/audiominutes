@@ -1,8 +1,8 @@
-# 🗄️ Esquema de Base de Datos - AudioMinutes
+# 🗄️ Esquema de Base de Datos - VoxCliente
 
 ## 📋 Descripción
 
-Este documento describe el esquema de base de datos que la aplicación **AudioMinutes** asume que existe. La aplicación **NO** crea ni administra estas tablas, solo las utiliza.
+Este documento describe el esquema de base de datos que la aplicación **VoxCliente** asume que existe. La aplicación **NO** crea ni administra estas tablas, solo las utiliza.
 
 ## 🎯 Tabla Principal
 
@@ -129,7 +129,7 @@ DATABASE_URL=postgresql://username:password@host:port/database_name
 Ejemplo:
 
 ```
-DATABASE_URL=postgresql://audiominutes:password123@localhost:5432/audiominutes_db
+DATABASE_URL=postgresql://voxcliente:password123@localhost:5432/voxcliente_db
 ```
 
 ## 📝 Notas de Implementación
@@ -144,4 +144,4 @@ DATABASE_URL=postgresql://audiominutes:password123@localhost:5432/audiominutes_d
 
 **Última actualización**: $(date)  
 **Versión del esquema**: 1.0  
-**Compatible con**: AudioMinutes Backend v0.1.0+
+**Compatible con**: VoxCliente Backend v0.1.0+

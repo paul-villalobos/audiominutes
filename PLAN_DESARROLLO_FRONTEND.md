@@ -1,4 +1,4 @@
-# Plan de Desarrollo Frontend - AudioMinutes
+# Plan de Desarrollo Frontend - VoxCliente
 
 ## Filosofía: Simplicidad Primero
 

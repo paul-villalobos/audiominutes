@@ -1,20 +1,20 @@
-# AudioMinutes MVP
+# VoxCliente MVP
 
 **Backend de una app que convierte grabaciones de audio en actas de reuniones profesionales mediante IA**
 
-AudioMinutes automatiza la transcripción de reuniones y genera actas profesionales que se envían automáticamente por email. MVP enfocado en validar tracción de usuarios con funcionalidad mínima viable.
+VoxCliente automatiza la transcripción de reuniones y genera actas profesionales que se envían automáticamente por email. MVP enfocado en validar tracción de usuarios con funcionalidad mínima viable.
 
 ## Ejecutar aplicación:
 
 ```bash
 # Opción 1: Usando el módulo Python
-poetry run python -m audiominutes.main
+poetry run python -m voxcliente.main
 
 # Opción 2: Usando uvicorn directamente
-poetry run uvicorn src.audiominutes.main:app --host 127.0.0.1 --port 8000
+poetry run uvicorn src.voxcliente.main:app --host 127.0.0.1 --port 8000
 
 # Opción 3: Con reload para desarrollo
-poetry run uvicorn src.audiominutes.main:app --reload --host 127.0.0.1 --port 8000
+poetry run uvicorn src.voxcliente.main:app --reload --host 127.0.0.1 --port 8000
 ```
 
 ## 🎯 Funcionalidades
@@ -66,7 +66,7 @@ CREATE INDEX idx_usage_logs_created_at ON usage_logs(created_at);
 ```bash
 # Clonar el repositorio
 git clone <repository-url>
-cd audiominutes-backend
+cd voxcliente-backend
 
 # Instalar dependencias con Poetry
 poetry install
@@ -85,7 +85,7 @@ Crea un archivo `.env` con las siguientes variables:
 DEBUG=false
 
 # Database
-DATABASE_URL=postgresql://username:password@localhost:5432/audiominutes
+DATABASE_URL=postgresql://username:password@localhost:5432/voxcliente
 
 # External API Keys
 ASSEMBLYAI_API_KEY=your_assemblyai_api_key_here
@@ -97,8 +97,8 @@ MAX_FILE_SIZE_MB=100
 ALLOWED_AUDIO_FORMATS=["wav", "mp3", "m4a", "flac", "aac", "ogg"]
 
 # Email settings
-FROM_EMAIL=noreply@audiominutes.com
-FROM_NAME=AudioMinutes
+FROM_EMAIL=noreply@voxcliente.com
+FROM_NAME=VoxCliente
 
 # CORS settings
 ALLOWED_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
@@ -108,10 +108,10 @@ ALLOWED_ORIGINS=["http://localhost:3000", "http://localhost:8080"]
 
 ```bash
 # Usando Poetry
-poetry run python -m audiominutes.main
+poetry run python -m voxcliente.main
 
 # O directamente con uvicorn
-poetry run uvicorn audiominutes.main:app --reload --host 0.0.0.0 --port 8000
+poetry run uvicorn voxcliente.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Health Check
@@ -168,4 +168,4 @@ curl http://localhost:8000/api/v1/health
 - ✅ Generación de actas con OpenAI
 - ✅ Envío automático por email
 
-**AudioMinutes** - Transforma tus reuniones en actas profesionales automáticamente 🎤→📄
+**VoxCliente** - Transforma tus reuniones en actas profesionales automáticamente 🎤→📄

@@ -1,8 +1,8 @@
-# 📋 Plan de Desarrollo AudioMinutes MVP
+# 📋 Plan de Desarrollo VoxCliente MVP
 
 ## 🎯 Resumen del Proyecto
 
-**AudioMinutes** es un backend que convierte grabaciones de audio en actas de reuniones profesionales mediante IA. El MVP se enfoca en validar tracción de usuarios con funcionalidad mínima viable.
+**VoxCliente** es un backend que convierte grabaciones de audio en actas de reuniones profesionales mediante IA. El MVP se enfoca en validar tracción de usuarios con funcionalidad mínima viable.
 
 ### Objetivo Principal
 

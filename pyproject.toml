@@ -1,5 +1,5 @@
 [project]
-name = "audiominutes-backend"
+name = "voxcliente-backend"
 version = "0.1.0"
 description = "Backend para convertir grabaciones de audio en actas de reuniones profesionales mediante IA"
 authors = [
@@ -20,7 +20,7 @@ dependencies = [
 ]
 
 [tool.poetry]
-packages = [{include = "audiominutes", from = "src"}]
+packages = [{include = "voxcliente", from = "src"}]
 
 # Testing configuration removed - pytest not included in MVP dependencies
 
