@@ -3,6 +3,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 from audiominutes.config import settings
 from audiominutes.api import router as health_router
@@ -36,6 +38,14 @@ def create_app() -> FastAPI:
     
     # Include routers
     app.include_router(health_router, prefix="/api/v1", tags=["health"])
+    
+    # Serve index.html at root
+    @app.get("/")
+    async def read_index():
+        return FileResponse("src/audiominutes/static/index.html")
+    
+    # Mount static files
+    app.mount("/static", StaticFiles(directory="src/audiominutes/static"), name="static")
     
     return app
 

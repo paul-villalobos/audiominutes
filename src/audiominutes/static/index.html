@@ -1,0 +1,392 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AudioMinutes | Convierte Audio en Actas Profesionales con IA</title>
+    <meta
+      name="description"
+      content="Transforma tus grabaciones de reuniones en actas profesionales automáticamente. Sube tu audio, procesamos con IA y recibes las actas por email en minutos."
+    />
+    <meta
+      property="og:title"
+      content="AudioMinutes | Actas de Reuniones con IA"
+    />
+    <meta
+      property="og:description"
+      content="Convierte grabaciones de audio en actas profesionales automáticamente. Tecnología de IA avanzada para ahorrar tiempo en tus reuniones."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta
+      name="twitter:title"
+      content="AudioMinutes | Actas de Reuniones con IA"
+    />
+    <meta
+      name="twitter:description"
+      content="Transforma audio en actas profesionales con IA. Rápido, preciso y automático."
+    />
+    <link rel="stylesheet" href="/static/css/main.css" />
+  </head>
+  <body>
+    <svg class="hidden">
+      <defs>
+        <symbol
+          id="mic-icon"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"></path>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+          <line x1="12" x2="12" y1="19" y2="22"></line>
+        </symbol>
+      </defs>
+    </svg>
+    <div class="min-h-screen bg-gradient-surface">
+      <!-- Header -->
+      <header class="w-full py-6 px-4 animate-fade-in">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <div
+              class="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center"
+            >
+              <svg class="w-6 h-6 text-primary-foreground">
+                <use href="#mic-icon"></use>
+              </svg>
+            </div>
+            <h1 class="text-2xl font-bold gradient-text">AudioMinutes</h1>
+          </div>
+          <div
+            class="items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold bg-secondary text-secondary-foreground hover:bg-secondary/80 hidden sm:flex"
+          >
+            <svg
+              class="w-4 h-4 mr-1"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"
+              ></path>
+            </svg>
+            IA Avanzada
+          </div>
+        </div>
+      </header>
+
+      <!-- Hero Section -->
+      <section class="w-full py-12 px-4 animate-slide-up">
+        <div class="max-w-4xl mx-auto text-center">
+          <h2
+            class="text-4xl md:text-6xl font-bold text-foreground mb-6 leading-tight"
+          >
+            Convierte tus <span class="gradient-text">reuniones</span> en actas
+            profesionales
+          </h2>
+          <p class="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">
+            Sube tu grabación de audio y recibe actas detalladas y profesionales
+            por email. Tecnología de IA avanzada en segundos.
+          </p>
+          <div
+            class="relative w-full max-w-3xl mx-auto mb-12 rounded-2xl overflow-hidden shadow-xl"
+          >
+            <img
+              src="/static/images/hero_meeting.jpg"
+              alt="Profesionales en reunión usando AudioMinutes"
+              class="w-full h-auto object-cover"
+            />
+            <div
+              class="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent"
+            ></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Upload Form Section -->
+      <section class="w-full py-12 px-4">
+        <div class="max-w-2xl mx-auto">
+          <div
+            class="rounded-lg border bg-card text-card-foreground p-8 shadow-xl glass animate-scale-in"
+          >
+            <form
+              id="upload-form"
+              class="space-y-6"
+              enctype="multipart/form-data"
+            >
+              <div class="space-y-2">
+                <label
+                  for="email"
+                  class="text-sm font-medium text-foreground flex items-center gap-2"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect width="20" height="16" x="2" y="4" rx="2"></rect>
+                    <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"></path>
+                  </svg>
+                  Email para recibir las actas
+                </label>
+                <input
+                  type="email"
+                  id="email"
+                  name="email"
+                  placeholder="tu@empresa.com"
+                  required
+                  class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm transition-all duration-300 focus:shadow-glow"
+                />
+              </div>
+
+              <div class="space-y-2">
+                <label
+                  for="audio-file"
+                  class="text-sm font-medium text-foreground flex items-center gap-2"
+                >
+                  <svg
+                    class="w-4 h-4"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M17.5 22h.5a2 2 0 0 0 2-2V7l-5-5H6a2 2 0 0 0-2 2v3"
+                    ></path>
+                    <path d="M14 2v4a2 2 0 0 0 2 2h4"></path>
+                    <path
+                      d="M2 19a2 2 0 1 1 4 0v1a2 2 0 1 1-4 0v-4a6 6 0 0 1 12 0v4a2 2 0 1 1-4 0v-1a2 2 0 1 1 4 0"
+                    ></path>
+                  </svg>
+                  Archivo de audio (máx. 15 min)
+                </label>
+                <div
+                  class="relative border-2 border-dashed rounded-xl p-8 text-center transition-all duration-300 cursor-pointer hover:border-accent border-border"
+                  id="drop-zone"
+                >
+                  <input
+                    type="file"
+                    id="audio-file"
+                    name="audio_file"
+                    accept=".mp3,.wav,.m4a,.mp4,.ogg"
+                    class="hidden"
+                    required
+                  />
+                  <div class="space-y-2">
+                    <svg
+                      class="w-12 h-12 text-muted-foreground mx-auto animate-bounce-gentle"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"
+                      ></path>
+                      <polyline points="17 8 12 3 7 8"></polyline>
+                      <line x1="12" x2="12" y1="3" y2="15"></line>
+                    </svg>
+                    <p class="font-medium text-foreground">
+                      Arrastra tu archivo aquí o haz click para seleccionar
+                    </p>
+                    <p class="text-sm text-muted-foreground">
+                      MP3, WAV, M4A, MP4, OGG - Máximo 150MB
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                id="submit-btn"
+                class="inline-flex items-center justify-center gap-2 font-medium bg-gradient-primary text-primary-foreground hover:shadow-glow transition-all duration-300 border-0 h-12 rounded-lg px-8 text-base w-full"
+                disabled
+              >
+                Procesar Audio
+                <svg
+                  class="w-4 h-4 ml-2"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M5 12h14"></path>
+                  <path d="m12 5 7 7-7 7"></path>
+                </svg>
+              </button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <!-- Features Section -->
+      <section class="w-full py-16 px-4">
+        <div class="max-w-6xl mx-auto">
+          <h3 class="text-3xl font-bold text-center text-foreground mb-12">
+            ¿Por qué elegir AudioMinutes?
+          </h3>
+          <div class="grid md:grid-cols-3 gap-8">
+            <div
+              class="rounded-lg border text-card-foreground shadow-sm p-8 text-center hover:shadow-lg transition-all duration-300 bg-card/50 backdrop-blur-sm"
+            >
+              <div
+                class="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4"
+              >
+                <svg
+                  class="w-8 h-8 text-primary-foreground"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+              </div>
+              <h4 class="text-xl font-semibold text-foreground mb-2">
+                Ahorra Tiempo
+              </h4>
+              <p class="text-muted-foreground">
+                De horas de transcripción manual a minutos de procesamiento
+                automático
+              </p>
+            </div>
+
+            <div
+              class="rounded-lg border text-card-foreground shadow-sm p-8 text-center hover:shadow-lg transition-all duration-300 bg-card/50 backdrop-blur-sm"
+            >
+              <div
+                class="w-16 h-16 bg-gradient-accent rounded-full flex items-center justify-center mx-auto mb-4"
+              >
+                <svg
+                  class="w-8 h-8 text-accent-foreground"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"
+                  ></path>
+                </svg>
+              </div>
+              <h4 class="text-xl font-semibold text-foreground mb-2">
+                IA Avanzada
+              </h4>
+              <p class="text-muted-foreground">
+                Tecnología de última generación para transcripciones precisas y
+                estructuradas
+              </p>
+            </div>
+
+            <div
+              class="rounded-lg border text-card-foreground shadow-sm p-8 text-center hover:shadow-lg transition-all duration-300 bg-card/50 backdrop-blur-sm"
+            >
+              <div
+                class="w-16 h-16 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4"
+              >
+                <svg
+                  class="w-8 h-8 text-primary-foreground"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"
+                  ></path>
+                </svg>
+              </div>
+              <h4 class="text-xl font-semibold text-foreground mb-2">Seguro</h4>
+              <p class="text-muted-foreground">
+                Tus datos están protegidos con encriptación de nivel empresarial
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Steps Section -->
+      <section class="w-full py-16 px-4 bg-card/30">
+        <div class="max-w-4xl mx-auto">
+          <h3 class="text-3xl font-bold text-center text-foreground mb-12">
+            Simple en 4 pasos
+          </h3>
+          <div class="grid md:grid-cols-4 gap-6">
+            <div class="text-center">
+              <div
+                class="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-primary-foreground font-bold"
+              >
+                1
+              </div>
+              <h4 class="font-semibold text-foreground mb-2">
+                Ingresa tu email
+              </h4>
+              <p class="text-sm text-muted-foreground">
+                Para recibir las actas
+              </p>
+            </div>
+            <div class="text-center">
+              <div
+                class="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-primary-foreground font-bold"
+              >
+                2
+              </div>
+              <h4 class="font-semibold text-foreground mb-2">Sube tu audio</h4>
+              <p class="text-sm text-muted-foreground">Máximo 15 minutos</p>
+            </div>
+            <div class="text-center">
+              <div
+                class="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-primary-foreground font-bold"
+              >
+                3
+              </div>
+              <h4 class="font-semibold text-foreground mb-2">Procesa con IA</h4>
+              <p class="text-sm text-muted-foreground">Automático y rápido</p>
+            </div>
+            <div class="text-center">
+              <div
+                class="w-12 h-12 bg-gradient-primary rounded-full flex items-center justify-center mx-auto mb-4 text-primary-foreground font-bold"
+              >
+                4
+              </div>
+              <h4 class="font-semibold text-foreground mb-2">
+                Recibe por email
+              </h4>
+              <p class="text-sm text-muted-foreground">Actas profesionales</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="w-full py-8 px-4 border-t border-border bg-card/20">
+        <div class="max-w-6xl mx-auto text-center">
+          <div class="flex items-center justify-center gap-3 mb-4">
+            <div
+              class="w-8 h-8 bg-gradient-primary rounded-lg flex items-center justify-center"
+            >
+              <svg class="w-5 h-5 text-primary-foreground">
+                <use href="#mic-icon"></use>
+              </svg>
+            </div>
+            <span class="text-lg font-semibold text-foreground"
+              >AudioMinutes</span
+            >
+          </div>
+          <p class="text-sm text-muted-foreground">
+            © 2024 AudioMinutes. Convierte tus reuniones en actas profesionales
+            con IA.
+          </p>
+        </div>
+      </footer>
+    </div>
+
+    <script src="/static/js/main.js"></script>
+  </body>
+</html>
