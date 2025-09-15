@@ -3,7 +3,9 @@
 import assemblyai as aai
 import openai
 import resend
-from typing import Optional
+import json
+import re
+from typing import Optional, Dict, Any
 from datetime import datetime
 from pathlib import Path
 from voxcliente.config import settings
@@ -71,8 +73,9 @@ class OpenAIService:
     def __init__(self):
         """Inicializar cliente de OpenAI."""
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
+        self.prompt_path = Path(__file__).parent / "prompts" / "acta_generation.txt"
     
-    def generate_acta(self, transcript: str) -> Optional[str]:
+    def generate_acta(self, transcript: str) -> Optional[Dict[str, Any]]:
         """
         Generar acta profesional a partir de transcripción.
         
@@ -80,59 +83,97 @@ class OpenAIService:
             transcript: Transcripción del audio
             
         Returns:
-            Acta profesional o None si hay error
+            Diccionario con resumen_ejecutivo y acta completa o None si hay error
         """
         try:
-            prompt = f"""
-Convierte la siguiente transcripción de reunión en un acta profesional y estructurada:
-
-TRANSCRIPCIÓN:
-{transcript}
-
-FORMATO DEL ACTA:
-1. **Información General**
-   - Fecha: [Fecha de la reunión]
-   - Participantes: [Lista de participantes identificados]
-   - Duración: [Duración estimada]
-
-2. **Agenda/Temas Tratados**
-   - [Lista de temas principales discutidos]
-
-3. **Decisiones Tomadas**
-   - [Decisiones importantes acordadas]
-
-4. **Acciones Pendientes**
-   - [Tareas asignadas con responsables]
-
-5. **Próximos Pasos**
-   - [Siguientes reuniones o acciones]
-
-6. **Observaciones**
-   - [Notas adicionales relevantes]
-
-IMPORTANTE:
-- Mantén un tono profesional y formal
-- Organiza la información de manera clara y estructurada
-- Identifica participantes, decisiones y acciones cuando sea posible
-- Si no hay información específica sobre fechas o participantes, usa "[Por determinar]"
-- Mantén la información original pero organízala profesionalmente
-"""
+            # Cargar prompt desde archivo
+            prompt_template = self._load_prompt()
+            if not prompt_template:
+                print("Error: No se pudo cargar el prompt")
+                return None
+            
+            # Personalizar prompt con la transcripción
+            prompt = prompt_template.replace("{{ transcript }}", transcript)
             
             response = self.client.chat.completions.create(
                 model="gpt-3.5-turbo",
                 messages=[
-                    {"role": "system", "content": "Eres un asistente experto en crear actas de reuniones profesionales."},
+                    {"role": "system", "content": "Eres un asistente experto en crear actas de reuniones profesionales. Responde ÚNICAMENTE con JSON válido."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=2000,
                 temperature=0.3
             )
             
-            return response.choices[0].message.content
+            # Parsear respuesta JSON
+            raw_response = response.choices[0].message.content
+            parsed_data = self._parse_response(raw_response)
+            
+            return parsed_data
             
         except Exception as e:
             print(f"Error generando acta: {e}")
             return None
+    
+    def _load_prompt(self) -> Optional[str]:
+        """Cargar prompt desde archivo."""
+        try:
+            return self.prompt_path.read_text(encoding='utf-8')
+        except Exception as e:
+            print(f"Error cargando prompt: {e}")
+            return None
+    
+    def _parse_response(self, raw_response: str) -> Optional[Dict[str, Any]]:
+        """Parsear respuesta JSON de OpenAI."""
+        try:
+            # Extraer JSON entre las etiquetas <output> y </output>
+            pattern = r'<output>(.*?)</output>'
+            match = re.search(pattern, raw_response, re.DOTALL)
+            
+            if not match:
+                print("Error: No se encontró JSON entre etiquetas <output>")
+                return None
+            
+            json_str = match.group(1).strip()
+            
+            # Parsear JSON
+            parsed_data = json.loads(json_str)
+            
+            # Validar estructura requerida
+            if not self._validate_structure(parsed_data):
+                print("Error: Estructura JSON inválida")
+                return None
+            
+            return parsed_data
+            
+        except json.JSONDecodeError as e:
+            print(f"Error parseando JSON: {e}")
+            return None
+        except Exception as e:
+            print(f"Error procesando respuesta: {e}")
+            return None
+    
+    def _validate_structure(self, data: Dict[str, Any]) -> bool:
+        """Validar estructura del JSON parseado."""
+        try:
+            # Verificar que tenga las claves principales
+            if "resumen_ejecutivo" not in data or "acta" not in data:
+                return False
+            
+            resumen = data["resumen_ejecutivo"]
+            if not isinstance(resumen, dict):
+                return False
+            
+            # Verificar campos del resumen ejecutivo
+            required_fields = ["objetivo", "acuerdos", "proximos_pasos"]
+            for field in required_fields:
+                if field not in resumen:
+                    return False
+            
+            return True
+            
+        except Exception:
+            return False
 
 
 class ResendEmailService:
@@ -143,13 +184,13 @@ class ResendEmailService:
         resend.api_key = settings.resend_api_key
         self.template_path = Path(__file__).parent / "templates" / "email_template.html"
     
-    def send_acta_email(self, email: str, acta: str, filename: str) -> bool:
+    def send_acta_email(self, email: str, acta_data: Dict[str, Any], filename: str) -> bool:
         """
         Enviar acta por email usando Resend.
         
         Args:
             email: Email del destinatario
-            acta: Contenido del acta
+            acta_data: Diccionario con resumen_ejecutivo y acta completa
             filename: Nombre del archivo procesado
             
         Returns:
@@ -162,8 +203,8 @@ class ResendEmailService:
                 print("Error: No se pudo cargar el template de email")
                 return False
             
-            # Personalizar template
-            html_content = self._personalize_template(template_content, acta, filename)
+            # Personalizar template con resumen ejecutivo en el cuerpo
+            html_content = self._personalize_template(template_content, acta_data, filename)
             
             # Enviar email
             response = resend.Emails.send({
@@ -188,11 +229,34 @@ class ResendEmailService:
             print(f"Error cargando template: {e}")
             return None
     
-    def _personalize_template(self, template: str, acta: str, filename: str) -> str:
+    def _personalize_template(self, template: str, acta_data: Dict[str, Any], filename: str) -> str:
         """Personalizar template con datos específicos."""
         timestamp = datetime.now().strftime("%d/%m/%Y a las %H:%M")
         
-        return template.replace("{{ acta_content }}", acta) \
+        # Extraer resumen ejecutivo
+        resumen = acta_data.get("resumen_ejecutivo", {})
+        objetivo = resumen.get("objetivo", "No especificado")
+        acuerdos = resumen.get("acuerdos", "No especificados")
+        proximos_pasos = resumen.get("proximos_pasos", "No especificados")
+        
+        # Crear resumen ejecutivo para el cuerpo del email
+        resumen_ejecutivo_html = f"""
+        <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="color: #2c3e50; margin-top: 0;">📋 Resumen Ejecutivo</h3>
+            <p><strong>🎯 Objetivo:</strong> {objetivo}</p>
+            <p><strong>🤝 Acuerdos:</strong> {acuerdos}</p>
+            <p><strong>📅 Próximos Pasos:</strong> {proximos_pasos}</p>
+        </div>
+        <p style="color: #666; font-size: 14px;">
+            <em>Para detalles completos, consulta el acta adjunta.</em>
+        </p>
+        """
+        
+        # Acta completa para adjunto (si se necesita en el template)
+        acta_completa = acta_data.get("acta", "")
+        
+        return template.replace("{{ resumen_ejecutivo }}", resumen_ejecutivo_html) \
+                     .replace("{{ acta_content }}", acta_completa) \
                      .replace("{{ filename }}", filename) \
                      .replace("{{ timestamp }}", timestamp)
 

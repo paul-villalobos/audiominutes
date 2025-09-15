@@ -98,7 +98,7 @@ CREATE INDEX idx_usage_logs_created_at ON usage_logs(created_at);
 
 #### 4.1 Endpoint Principal ⏳ **PENDIENTE**
 
-- ⏳ Crear endpoint `/process-audio` que orqueste todo el flujo
+- ⏳ Mejorar endpoint `/transcribe` que orqueste todo el flujo
 - ⏳ Implementar procesamiento asíncrono
 - ⏳ Manejar estados de procesamiento
 - ⏳ Logging detallado de cada paso

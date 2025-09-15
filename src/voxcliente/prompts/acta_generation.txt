@@ -1,0 +1,26 @@
+Convierte la siguiente transcripción de reunión en un formato estructurado con resumen ejecutivo y acta completa:
+
+TRANSCRIPCIÓN:
+{{ transcript }}
+
+FORMATO DE SALIDA REQUERIDO:
+Debes responder ÚNICAMENTE con el siguiente formato JSON válido:
+
+<output>
+{
+  "resumen_ejecutivo": {
+    "objetivo": "Objetivo principal de la reunión en 1-2 líneas",
+    "acuerdos": "Principales acuerdos tomados en 2-3 líneas",
+    "proximos_pasos": "Próximos pasos concretos en 2-3 líneas"
+  },
+  "acta": "Acta completa y detallada con el siguiente formato:\n\n1. **Información General**\n   - Fecha: [Fecha de la reunión]\n   - Participantes: [Lista de participantes identificados]\n   - Duración: [Duración estimada]\n\n2. **Agenda/Temas Tratados**\n   - [Lista de temas principales discutidos]\n\n3. **Decisiones Tomadas**\n   - [Decisiones importantes acordadas]\n\n4. **Acciones Pendientes**\n   - [Tareas asignadas con responsables]\n\n5. **Próximos Pasos**\n   - [Siguientes reuniones o acciones]\n\n6. **Observaciones**\n   - [Notas adicionales relevantes]"
+}
+</output>
+
+INSTRUCCIONES IMPORTANTES:
+- Responde ÚNICAMENTE con el JSON válido entre las etiquetas <output> y </output>
+- El resumen_ejecutivo debe ser conciso y directo para lectura rápida
+- El acta debe ser completa y profesional para referencia detallada
+- Mantén un tono profesional y formal
+- Si no hay información específica sobre fechas o participantes, usa "[Por determinar]"
+- Asegúrate de que el JSON sea válido y parseable

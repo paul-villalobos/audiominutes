@@ -120,7 +120,12 @@
 
         <div class="filename">📁 {{ filename }}</div>
 
-        <div class="acta-content">{{ acta_content }}</div>
+        {{ resumen_ejecutivo }}
+
+        <div class="acta-content">
+          <h2>📄 Acta Completa</h2>
+          {{ acta_content }}
+        </div>
 
         <p><strong>¿Necesitas hacer algún ajuste?</strong></p>
         <p>
