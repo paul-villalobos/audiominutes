@@ -86,7 +86,7 @@ async def transcribe_audio(
             raise HTTPException(status_code=500, detail="Error en la transcripción")
         
         # Generar acta profesional usando OpenAI
-        acta = openai_service.generate_minutes(transcript)
+        acta = openai_service.generate_acta(transcript)
         if not acta:
             raise HTTPException(status_code=500, detail="Error generando acta")
         
@@ -99,7 +99,6 @@ async def transcribe_audio(
             "email": email,
             "transcript": transcript,
             "acta": acta,
-            "message": "Transcripción completada"
         }
         
     except Exception as e:

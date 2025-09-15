@@ -13,8 +13,10 @@ class AssemblyAIService:
         """Inicializar cliente de AssemblyAI."""
         aai.settings.api_key = settings.assemblyai_api_key
         config = aai.TranscriptionConfig(
-            language_code="es",
             speaker_labels=True,
+            format_text=True,
+            punctuate=True,
+            language_code="es",
             )
 
         config.set_custom_spelling(
@@ -27,23 +29,33 @@ class AssemblyAIService:
     
     def transcribe_file(self, file_path: str) -> Optional[str]:
         """
-        Transcribir archivo local usando AssemblyAI.
+        Transcribir archivo local usando AssemblyAI con utterances.
         Basado en la documentación oficial de AssemblyAI.
         
         Args:
             file_path: Ruta del archivo local
             
         Returns:
-            Transcripción del audio o None si hay error
+            Transcripción del audio con información de hablantes o None si hay error
         """
         try:
             # Transcribir archivo local directamente
             transcript = self.transcriber.transcribe(file_path)
             
-            print(transcript)
-            return transcript.text if transcript.text else None
-
-            #return transcript
+            # Verificar si la transcripción fue exitosa
+            if transcript.status == aai.TranscriptStatus.error:
+                print(f"Error en la transcripción: {transcript.error}")
+                return None
+            
+            # Procesar utterances para obtener texto con información de hablantes
+            if transcript.utterances:
+                formatted_text = ""
+                for utterance in transcript.utterances:
+                    formatted_text += f"Hablante {utterance.speaker}: {utterance.text}\n"
+                return formatted_text.strip()
+            else:
+                # Fallback al texto completo si no hay utterances
+                return transcript.text if transcript.text else None
             
         except Exception as e:
             print(f"Error en transcripción: {e}")
@@ -57,7 +69,7 @@ class OpenAIService:
         """Inicializar cliente de OpenAI."""
         self.client = openai.OpenAI(api_key=settings.openai_api_key)
     
-    def generate_minutes(self, transcript: str) -> Optional[str]:
+    def generate_acta(self, transcript: str) -> Optional[str]:
         """
         Generar acta profesional a partir de transcripción.
         
@@ -68,35 +80,7 @@ class OpenAIService:
             Acta profesional o None si hay error
         """
         try:
-            prompt = self._create_minutes_prompt(transcript)
-            
-            response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
-                messages=[
-                    {"role": "system", "content": "Eres un asistente experto en crear actas de reuniones profesionales."},
-                    {"role": "user", "content": prompt}
-                ],
-                max_tokens=2000,
-                temperature=0.3
-            )
-            
-            return response.choices[0].message.content
-            
-        except Exception as e:
-            print(f"Error generando acta: {e}")
-            return None
-    
-    def _create_minutes_prompt(self, transcript: str) -> str:
-        """
-        Crear prompt optimizado para generar actas profesionales.
-        
-        Args:
-            transcript: Transcripción del audio
-            
-        Returns:
-            Prompt estructurado
-        """
-        return f"""
+            prompt = f"""
 Convierte la siguiente transcripción de reunión en un acta profesional y estructurada:
 
 TRANSCRIPCIÓN:
@@ -130,6 +114,22 @@ IMPORTANTE:
 - Si no hay información específica sobre fechas o participantes, usa "[Por determinar]"
 - Mantén la información original pero organízala profesionalmente
 """
+            
+            response = self.client.chat.completions.create(
+                model="gpt-3.5-turbo",
+                messages=[
+                    {"role": "system", "content": "Eres un asistente experto en crear actas de reuniones profesionales."},
+                    {"role": "user", "content": prompt}
+                ],
+                max_tokens=2000,
+                temperature=0.3
+            )
+            
+            return response.choices[0].message.content
+            
+        except Exception as e:
+            print(f"Error generando acta: {e}")
+            return None
 
 
 # Instancias globales de los servicios
