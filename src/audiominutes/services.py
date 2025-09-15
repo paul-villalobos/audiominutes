@@ -2,7 +2,10 @@
 
 import assemblyai as aai
 import openai
+import resend
 from typing import Optional
+from datetime import datetime
+from pathlib import Path
 from audiominutes.config import settings
 
 
@@ -132,6 +135,69 @@ IMPORTANTE:
             return None
 
 
+class ResendEmailService:
+    """Servicio simple para Resend."""
+    
+    def __init__(self):
+        """Inicializar cliente de Resend."""
+        resend.api_key = settings.resend_api_key
+        self.template_path = Path(__file__).parent / "templates" / "email_template.html"
+    
+    def send_acta_email(self, email: str, acta: str, filename: str) -> bool:
+        """
+        Enviar acta por email usando Resend.
+        
+        Args:
+            email: Email del destinatario
+            acta: Contenido del acta
+            filename: Nombre del archivo procesado
+            
+        Returns:
+            True si se envió correctamente, False si hubo error
+        """
+        try:
+            # Cargar template HTML
+            template_content = self._load_template()
+            if not template_content:
+                print("Error: No se pudo cargar el template de email")
+                return False
+            
+            # Personalizar template
+            html_content = self._personalize_template(template_content, acta, filename)
+            
+            # Enviar email
+            response = resend.Emails.send({
+                "from": f"{settings.from_name} <{settings.from_email}>",
+                "to": [email],
+                "subject": f"Acta de Reunión - {filename}",
+                "html": html_content,
+            })
+            
+            print(f"Email enviado exitosamente: {response}")
+            return True
+            
+        except Exception as e:
+            print(f"Error enviando email: {e}")
+            return False
+    
+    def _load_template(self) -> Optional[str]:
+        """Cargar template HTML desde archivo."""
+        try:
+            return self.template_path.read_text(encoding='utf-8')
+        except Exception as e:
+            print(f"Error cargando template: {e}")
+            return None
+    
+    def _personalize_template(self, template: str, acta: str, filename: str) -> str:
+        """Personalizar template con datos específicos."""
+        timestamp = datetime.now().strftime("%d/%m/%Y a las %H:%M")
+        
+        return template.replace("{{ acta_content }}", acta) \
+                     .replace("{{ filename }}", filename) \
+                     .replace("{{ timestamp }}", timestamp)
+
+
 # Instancias globales de los servicios
 assemblyai_service = AssemblyAIService()
 openai_service = OpenAIService()
+resend_email_service = ResendEmailService()
