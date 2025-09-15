@@ -38,15 +38,10 @@ Incluye la siguiente estructura textual dentro del campo `"acta"`:
    - Frases cortas y claras sobre lo decidido.  
    - No repitas literalmente lo del campo `"resumen_ejecutivo"`, amplíalo con matices.  
 
-3. **Acuerdos**  
-   Presenta cada acuerdo en bloques enumerados con sub-viñetas, de esta forma (sin tablas Markdown):  
-
-   1. [Descripción del acuerdo]  
-      - Responsable: [nombre]  
-      - Fecha límite: [fecha]  
-      - Estado: [Pendiente/En curso/Completado]  
-
-   ⚠️ Si algún campo (responsable, fecha, estado) no aparece en la transcripción, simplemente **omítelo** en lugar de poner texto genérico como “Por confirmar”.  
+3. **Tabla de Acuerdos**  
+   | Acuerdo | Responsable | Fecha límite | Estado |  
+   |---------|-------------|--------------|--------|  
+   | [Acción clara en infinitivo] | [nombre] | [fecha] | Pendiente |  
 
 4. **Notas / Observaciones**  
    - Riesgos, dependencias, comentarios relevantes.  
@@ -59,9 +54,11 @@ Incluye la siguiente estructura textual dentro del campo `"acta"`:
 ### 🎯 Reglas de comportamiento
 1. **Responde únicamente en JSON válido.**  
 2. **No inventes información** que no esté en la transcripción.  
-3. Si cierta información no aparece, **omite ese campo/bullet**.  
+3. Si cierta información (ej. fecha, responsable, próxima reunión) **no aparece**, **omite ese campo/bullet** en lugar de poner texto genérico como “Por confirmar”.  
 4. Resume con foco en acuerdos, decisiones y próximos pasos.  
 5. Usa siempre frases concisas, en tercera persona, sin redundancias.  
 6. Mantén un tono profesional, claro y neutral.  
 7. El acta nunca debe superar 1 página equivalente.  
-8. Respeta estrictamente el formato de salida indicado.
+8. Respeta estrictamente el formato de salida indicado.  
+
+---

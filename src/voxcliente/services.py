@@ -5,9 +5,14 @@ import openai
 import resend
 import json
 import re
+import tempfile
+import base64
 from typing import Optional, Dict, Any
 from datetime import datetime
 from pathlib import Path
+from docx import Document
+from docx.shared import Inches
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from voxcliente.config import settings
 
 
@@ -92,16 +97,13 @@ class OpenAIService:
                 print("Error: No se pudo cargar el prompt")
                 return None
             
-            # Personalizar prompt con la transcripción
-            prompt = prompt_template.replace("{{ transcript }}", transcript)
-            
             response = self.client.chat.completions.create(
-                model="gpt-3.5-turbo",
+                model="gpt-4.1-mini",
                 messages=[
-                    {"role": "system", "content": "Eres un asistente experto en crear actas de reuniones profesionales. Responde ÚNICAMENTE con JSON válido."},
-                    {"role": "user", "content": prompt}
+                    {"role": "system", "content": prompt_template},
+                    {"role": "user", "content": transcript}
                 ],
-                max_tokens=2000,
+                max_tokens=4000,    
                 temperature=0.3
             )
             
@@ -186,7 +188,7 @@ class ResendEmailService:
     
     def send_acta_email(self, email: str, acta_data: Dict[str, Any], filename: str) -> bool:
         """
-        Enviar acta por email usando Resend.
+        Enviar acta por email usando Resend con archivo Word adjunto.
         
         Args:
             email: Email del destinatario
@@ -196,6 +198,7 @@ class ResendEmailService:
         Returns:
             True si se envió correctamente, False si hubo error
         """
+        word_file_path = None
         try:
             # Cargar template HTML
             template_content = self._load_template()
@@ -206,20 +209,51 @@ class ResendEmailService:
             # Personalizar template con resumen ejecutivo en el cuerpo
             html_content = self._personalize_template(template_content, acta_data, filename)
             
-            # Enviar email
-            response = resend.Emails.send({
+            # Generar archivo Word
+            word_file_path = self._generate_word_document(acta_data, filename)
+            if not word_file_path:
+                print("Error: No se pudo generar el archivo Word")
+                return False
+            
+            # Leer archivo Word y convertirlo a base64
+            with open(word_file_path, 'rb') as word_file:
+                word_content = word_file.read()
+                word_base64 = base64.b64encode(word_content).decode('utf-8')
+            
+            # Crear nombre del archivo adjunto
+            attachment_filename = f"Acta_Reunion_{filename.replace('.', '_')}.docx"
+            
+            # Preparar datos del email
+            email_data = {
                 "from": f"{settings.from_name} <{settings.from_email}>",
                 "to": [email],
                 "subject": f"Acta de Reunión - {filename}",
                 "html": html_content,
-            })
+                "attachments": [
+                    {
+                        "filename": attachment_filename,
+                        "content": word_base64,
+                        "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    }
+                ]
+            }
             
-            print(f"Email enviado exitosamente: {response}")
+            # Enviar email
+            response = resend.Emails.send(email_data)
+            
+            print(f"Email enviado exitosamente con adjunto: {response}")
             return True
             
         except Exception as e:
             print(f"Error enviando email: {e}")
             return False
+        finally:
+            # Limpiar archivo temporal
+            if word_file_path:
+                try:
+                    Path(word_file_path).unlink()
+                except Exception as e:
+                    print(f"Error eliminando archivo temporal: {e}")
     
     def _load_template(self) -> Optional[str]:
         """Cargar template HTML desde archivo."""
@@ -259,6 +293,103 @@ class ResendEmailService:
                      .replace("{{ acta_content }}", acta_completa) \
                      .replace("{{ filename }}", filename) \
                      .replace("{{ timestamp }}", timestamp)
+    
+    def _generate_word_document(self, acta_data: Dict[str, Any], filename: str) -> Optional[str]:
+        """
+        Generar archivo Word del acta.
+        
+        Args:
+            acta_data: Diccionario con resumen_ejecutivo y acta completa
+            filename: Nombre del archivo original
+            
+        Returns:
+            Ruta del archivo Word generado o None si hay error
+        """
+        try:
+            # Crear documento Word
+            doc = Document()
+            
+            # Configurar márgenes
+            sections = doc.sections
+            for section in sections:
+                section.top_margin = Inches(1)
+                section.bottom_margin = Inches(1)
+                section.left_margin = Inches(1)
+                section.right_margin = Inches(1)
+            
+            # Título principal
+            title = doc.add_heading('ACTA DE REUNIÓN', 0)
+            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            # Información del archivo
+            doc.add_paragraph(f'Archivo procesado: {filename}')
+            doc.add_paragraph(f'Fecha de generación: {datetime.now().strftime("%d/%m/%Y a las %H:%M")}')
+            doc.add_paragraph('')  # Línea en blanco
+            
+            # Resumen ejecutivo
+            resumen = acta_data.get("resumen_ejecutivo", {})
+            if resumen:
+                doc.add_heading('RESUMEN EJECUTIVO', level=1)
+                
+                objetivo = resumen.get("objetivo", "No especificado")
+                doc.add_paragraph(f'🎯 Objetivo: {objetivo}')
+                
+                acuerdos = resumen.get("acuerdos", "No especificados")
+                doc.add_paragraph(f'🤝 Acuerdos: {acuerdos}')
+                
+                proximos_pasos = resumen.get("proximos_pasos", "No especificados")
+                doc.add_paragraph(f'📅 Próximos Pasos: {proximos_pasos}')
+                
+                doc.add_paragraph('')  # Línea en blanco
+            
+            # Acta completa
+            acta_completa = acta_data.get("acta", "")
+            if acta_completa:
+                doc.add_heading('ACTA COMPLETA', level=1)
+                
+                # Procesar el texto del acta (convertir markdown básico a formato Word)
+                self._add_formatted_text(doc, acta_completa)
+            
+            # Crear archivo temporal
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.docx')
+            temp_path = temp_file.name
+            temp_file.close()
+            
+            # Guardar documento
+            doc.save(temp_path)
+            
+            return temp_path
+            
+        except Exception as e:
+            print(f"Error generando documento Word: {e}")
+            return None
+    
+    def _add_formatted_text(self, doc: Document, text: str):
+        """Agregar texto formateado al documento Word."""
+        lines = text.split('\n')
+        
+        for line in lines:
+            line = line.strip()
+            if not line:
+                doc.add_paragraph('')
+                continue
+            
+            # Detectar títulos (líneas que empiezan con números y **)
+            if re.match(r'^\d+\.\s*\*\*.*\*\*', line):
+                # Es un título principal
+                title_text = re.sub(r'^\d+\.\s*\*\*(.*)\*\*', r'\1', line)
+                doc.add_heading(title_text, level=2)
+            elif line.startswith('**') and line.endswith('**'):
+                # Es un subtítulo
+                title_text = line[2:-2]
+                doc.add_heading(title_text, level=3)
+            elif line.startswith('- '):
+                # Es un elemento de lista
+                item_text = line[2:]
+                p = doc.add_paragraph(item_text, style='List Bullet')
+            else:
+                # Es texto normal
+                doc.add_paragraph(line)
 
 
 # Instancias globales de los servicios

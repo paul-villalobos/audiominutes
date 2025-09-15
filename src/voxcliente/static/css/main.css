@@ -608,3 +608,192 @@ svg {
   display: inline-block;
   vertical-align: middle;
 }
+
+/* Mejoras para UX de feedback */
+.processing {
+  position: relative;
+  overflow: hidden;
+}
+
+.processing::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.2),
+    transparent
+  );
+  animation: shimmer 2s infinite;
+}
+
+@keyframes shimmer {
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
+}
+
+/* Animaciones mejoradas para notificaciones */
+@keyframes notificationSlideIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes notificationSlideOut {
+  from {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+}
+
+/* Estados de botón mejorados */
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none !important;
+}
+
+button:disabled:hover {
+  box-shadow: none !important;
+}
+
+/* Mejoras para el área de drop */
+#drop-zone {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+#drop-zone:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lg);
+}
+
+/* Animaciones de carga mejoradas */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes bounce {
+  0%,
+  20%,
+  53%,
+  80%,
+  100% {
+    transform: translateY(0);
+  }
+  40%,
+  43% {
+    transform: translateY(-8px);
+  }
+  70% {
+    transform: translateY(-4px);
+  }
+  90% {
+    transform: translateY(-2px);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+/* Mejoras para el overlay de procesamiento */
+.processing-overlay {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* Estados de focus mejorados */
+input:focus {
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.3);
+  border-color: hsl(var(--ring));
+}
+
+/* Mejoras para responsividad */
+@media (max-width: 640px) {
+  .notification-mobile {
+    margin: 1rem;
+    max-width: calc(100vw - 2rem);
+  }
+}
+
+/* Fix para notificaciones centradas */
+.fixed {
+  position: fixed !important;
+}
+
+.top-1\/2 {
+  top: 50% !important;
+}
+
+.left-1\/2 {
+  left: 50% !important;
+}
+
+.transform {
+  transform: translate(-50%, -50%) !important;
+}
+
+.-translate-x-1\/2 {
+  transform: translateX(-50%) !important;
+}
+
+.-translate-y-1\/2 {
+  transform: translateY(-50%) !important;
+}
+
+.z-50 {
+  z-index: 50 !important;
+}
+
+.z-40 {
+  z-index: 40 !important;
+}
+
+/* Estilos específicos para notificaciones */
+.notification-overlay {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  z-index: 40 !important;
+}
+
+.notification-modal {
+  position: fixed !important;
+  top: 50% !important;
+  left: 50% !important;
+  transform: translate(-50%, -50%) !important;
+  z-index: 50 !important;
+}
+
+/* Asegurar que el body no tenga scroll cuando hay notificación */
+body.notification-open {
+  overflow: hidden;
+}
