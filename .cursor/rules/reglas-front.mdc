@@ -1,0 +1,11 @@
+---
+description: Use this rule only when developing front end in this project
+alwaysApply: false
+---
+
+Reglas para desarrollo front end:
+
+- **Un solo archivo por tipo**: CSS, JS, HTML
+- **Sin frameworks**: Vanilla JavaScript
+- **Sin herramientas de build**: Directo al navegador
+- **Sin dependencias externas**: Todo autocontenido
