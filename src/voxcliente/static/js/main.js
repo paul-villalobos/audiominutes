@@ -114,9 +114,9 @@ document.addEventListener("DOMContentLoaded", function () {
     try {
       const formData = new FormData();
       formData.append("email", email);
-      formData.append("audio_file", file);
+      formData.append("file", file);
 
-      const response = await fetch("/api/v1/upload", {
+      const response = await fetch("/api/v1/transcribe", {
         method: "POST",
         body: formData,
       });
