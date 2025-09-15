@@ -13,8 +13,8 @@ RUN poetry config virtualenvs.create false
 # Copiar archivos de configuración de Poetry
 COPY pyproject.toml poetry.lock ./
 
-# Instalar dependencias
-RUN poetry install --only=main --no-dev
+# Regenerar lock file si es necesario e instalar dependencias
+RUN poetry lock --no-update && poetry install --only=main
 
 # Copiar código fuente
 COPY src/ ./src/
