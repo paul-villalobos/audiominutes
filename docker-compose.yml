@@ -1,0 +1,20 @@
+services:
+  # Solo el backend VoxCliente
+  backend:
+    build: .
+    container_name: voxcliente-backend
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env # Lee la conexión a PostgreSQL externo
+    volumes:
+      # Hot reload para desarrollo
+      - ./src:/app/src
+      # Directorio para archivos temporales
+      - ./uploads:/app/uploads
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3

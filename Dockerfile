@@ -13,11 +13,20 @@ RUN poetry config virtualenvs.create false
 # Copiar archivos de configuración de Poetry
 COPY pyproject.toml poetry.lock ./
 
+# Instalar dependencias
+RUN poetry install --only=main --no-dev
+
 # Copiar código fuente
 COPY src/ ./src/
 
-# Regenerar lock file si es necesario e instalar dependencias
-RUN poetry lock --no-update && poetry install --only=main
+# Crear directorio para archivos estáticos si no existe
+RUN mkdir -p src/voxcliente/static
+
+# Agregar el directorio src al PYTHONPATH
+ENV PYTHONPATH=/app/src
+
+# Crear directorio para uploads temporales
+RUN mkdir -p /app/uploads && chmod 755 /app/uploads
 
 # Exponer puerto 8000
 EXPOSE 8000
