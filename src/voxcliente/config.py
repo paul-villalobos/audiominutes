@@ -21,7 +21,7 @@ class Settings(BaseSettings):
     # Fixed settings for MVP (no env vars needed)
     max_file_size_mb: int = 100
     allowed_audio_formats: str = "wav,mp3,m4a"
-    from_email: str = "onboarding@resend.dev"
+    from_email: str = "actas@actas.voxcliente.com"
     from_name: str = "VoxCliente"
     allowed_origins: str = "http://localhost:3000,http://localhost:8080"
     
