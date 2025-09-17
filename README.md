@@ -6,6 +6,24 @@ VoxCliente automatiza la transcripción de reuniones y genera actas profesionale
 
 ## Ejecutar aplicación:
 
+### 🐳 Con Docker (Recomendado)
+
+```bash
+# Construir y ejecutar con docker-compose
+docker-compose up --build
+
+# Ejecutar en segundo plano
+docker-compose up -d --build
+
+# Ver logs
+docker-compose logs -f
+
+# Detener servicios
+docker-compose down
+```
+
+### 🐍 Con Python directamente
+
 ```bash
 # Opción 1: Usando el módulo Python
 poetry run python -m voxcliente.main
