@@ -90,8 +90,8 @@ async def transcribe_audio(
         if not acta:
             raise HTTPException(status_code=500, detail="Error generando acta")
         
-        # Enviar acta por email
-        email_sent = resend_email_service.send_acta_email(email, acta, file.filename)
+        # Enviar acta por email con transcripción adjunta
+        email_sent = resend_email_service.send_acta_email(email, acta, file.filename, transcript)
         
         # Limpiar archivo temporal
         os.unlink(temp_file_path)

@@ -7,6 +7,7 @@ import json
 import re
 import tempfile
 import base64
+import os
 from typing import Optional, Dict, Any
 from datetime import datetime
 from pathlib import Path
@@ -186,19 +187,21 @@ class ResendEmailService:
         resend.api_key = settings.resend_api_key
         self.template_path = Path(__file__).parent / "templates" / "email_template.html"
     
-    def send_acta_email(self, email: str, acta_data: Dict[str, Any], filename: str) -> bool:
+    def send_acta_email(self, email: str, acta_data: Dict[str, Any], filename: str, transcript: str = None) -> bool:
         """
-        Enviar acta por email usando Resend con archivo Word adjunto.
+        Enviar acta por email usando Resend con archivos Word adjuntos.
         
         Args:
             email: Email del destinatario
             acta_data: Diccionario con resumen_ejecutivo y acta completa
             filename: Nombre del archivo procesado
+            transcript: Transcripción completa de Assembly (opcional)
             
         Returns:
             True si se envió correctamente, False si hubo error
         """
         word_file_path = None
+        transcript_file_path = None
         try:
             # Cargar template HTML
             template_content = self._load_template()
@@ -209,19 +212,23 @@ class ResendEmailService:
             # Personalizar template con resumen ejecutivo en el cuerpo
             html_content = self._personalize_template(template_content, acta_data, filename)
             
-            # Generar archivo Word
+            # Generar archivo Word del acta
             word_file_path = self._generate_word_document(acta_data, filename)
             if not word_file_path:
-                print("Error: No se pudo generar el archivo Word")
+                print("Error: No se pudo generar el archivo Word del acta")
                 return False
             
-            # Leer archivo Word y convertirlo a base64
-            with open(word_file_path, 'rb') as word_file:
-                word_content = word_file.read()
-                word_base64 = base64.b64encode(word_content).decode('utf-8')
+            # Preparar lista de adjuntos
+            attachments = []
             
-            # Crear nombre del archivo adjunto
-            attachment_filename = f"Acta_Reunion_{filename.replace('.', '_')}.docx"
+            # Adjunto 1: Acta de reunión
+            attachments.append(self._create_attachment(word_file_path, f"Acta_Reunion_{filename.replace('.', '_')}.docx"))
+            
+            # Adjunto 2: Transcripción completa (si está disponible)
+            if transcript:
+                transcript_file_path = self._generate_transcript_document(transcript, filename)
+                if transcript_file_path:
+                    attachments.append(self._create_attachment(transcript_file_path, f"Transcripcion_Completa_{filename.replace('.', '_')}.docx"))
             
             # Preparar datos del email
             email_data = {
@@ -229,31 +236,42 @@ class ResendEmailService:
                 "to": [email],
                 "subject": f"Acta de Reunión - {filename}",
                 "html": html_content,
-                "attachments": [
-                    {
-                        "filename": attachment_filename,
-                        "content": word_base64,
-                        "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                    }
-                ]
+                "attachments": attachments
             }
             
             # Enviar email
             response = resend.Emails.send(email_data)
             
-            print(f"Email enviado exitosamente con adjunto: {response}")
+            print(f"Email enviado exitosamente con {len(attachments)} adjunto(s)")
             return True
             
         except Exception as e:
             print(f"Error enviando email: {e}")
             return False
         finally:
-            # Limpiar archivo temporal
-            if word_file_path:
+            # Limpiar archivos temporales
+            self._cleanup_temp_files([word_file_path, transcript_file_path])
+    
+    def _cleanup_temp_files(self, file_paths: list) -> None:
+        """Limpiar archivos temporales."""
+        for file_path in file_paths:
+            if file_path:
                 try:
-                    Path(word_file_path).unlink()
+                    Path(file_path).unlink()
                 except Exception as e:
                     print(f"Error eliminando archivo temporal: {e}")
+    
+    def _create_attachment(self, file_path: str, filename: str) -> Dict[str, str]:
+        """Crear adjunto para email desde archivo."""
+        with open(file_path, 'rb') as file:
+            content = file.read()
+            content_base64 = base64.b64encode(content).decode('utf-8')
+        
+        return {
+            "filename": filename,
+            "content": content_base64,
+            "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        }
     
     def _load_template(self) -> Optional[str]:
         """Cargar template HTML desde archivo."""
@@ -390,6 +408,67 @@ class ResendEmailService:
             else:
                 # Es texto normal
                 doc.add_paragraph(line)
+    
+    def _generate_transcript_document(self, transcript: str, filename: str) -> Optional[str]:
+        """
+        Generar documento Word con transcripción completa de Assembly.
+        
+        Args:
+            transcript: Transcripción cruda de Assembly con información de hablantes
+            filename: Nombre del archivo original
+            
+        Returns:
+            Ruta del archivo Word generado o None si hay error
+        """
+        try:
+            # Crear documento Word
+            doc = Document()
+            
+            # Configurar márgenes
+            sections = doc.sections
+            for section in sections:
+                section.top_margin = Inches(1)
+                section.bottom_margin = Inches(1)
+                section.left_margin = Inches(1)
+                section.right_margin = Inches(1)
+            
+            # Título principal
+            title = doc.add_heading('TRANSCRIPCIÓN COMPLETA', 0)
+            title.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            
+            # Información del archivo
+            doc.add_paragraph(f'Archivo procesado: {filename}')
+            doc.add_paragraph(f'Fecha de generación: {datetime.now().strftime("%d/%m/%Y a las %H:%M")}')
+            doc.add_paragraph('')  # Línea en blanco
+            
+            # Nota sobre el contenido
+            doc.add_paragraph('Esta transcripción contiene el texto completo tal como fue procesado por AssemblyAI, incluyendo la identificación de hablantes.')
+            doc.add_paragraph('')  # Línea en blanco
+            
+            # Transcripción completa (formato crudo)
+            doc.add_heading('TRANSCRIPCIÓN', level=1)
+            
+            # Agregar transcripción línea por línea manteniendo formato original
+            lines = transcript.split('\n')
+            for line in lines:
+                if line.strip():  # Solo agregar líneas no vacías
+                    doc.add_paragraph(line.strip())
+                else:
+                    doc.add_paragraph('')  # Mantener saltos de línea
+            
+            # Crear archivo temporal
+            temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.docx')
+            temp_path = temp_file.name
+            temp_file.close()
+            
+            # Guardar documento
+            doc.save(temp_path)
+            
+            return temp_path
+            
+        except Exception as e:
+            print(f"Error generando documento de transcripción: {e}")
+            return None
 
 
 # Instancias globales de los servicios
