@@ -16,6 +16,9 @@ from docx.shared import Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from voxcliente.config import settings
 
+# Constantes para tipos MIME
+WORD_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
 
 class AssemblyAIService:
     """Servicio simple para AssemblyAI."""
@@ -200,7 +203,7 @@ class ResendEmailService:
         Returns:
             True si se envió correctamente, False si hubo error
         """
-        word_file_path = None
+        acta_file_path = None
         transcript_file_path = None
         try:
             # Cargar template HTML
@@ -213,8 +216,8 @@ class ResendEmailService:
             html_content = self._personalize_template(template_content, acta_data, filename)
             
             # Generar archivo Word del acta
-            word_file_path = self._generate_word_document(acta_data, filename)
-            if not word_file_path:
+            acta_file_path = self._generate_word_document(acta_data, filename)
+            if not acta_file_path:
                 print("Error: No se pudo generar el archivo Word del acta")
                 return False
             
@@ -222,13 +225,13 @@ class ResendEmailService:
             attachments = []
             
             # Adjunto 1: Acta de reunión
-            attachments.append(self._create_attachment(word_file_path, f"Acta_Reunion_{filename.replace('.', '_')}.docx"))
+            attachments.append(self._create_attachment(acta_file_path, self._generate_filename("Acta_Reunion", filename)))
             
             # Adjunto 2: Transcripción completa (si está disponible)
             if transcript:
                 transcript_file_path = self._generate_transcript_document(transcript, filename)
                 if transcript_file_path:
-                    attachments.append(self._create_attachment(transcript_file_path, f"Transcripcion_Completa_{filename.replace('.', '_')}.docx"))
+                    attachments.append(self._create_attachment(transcript_file_path, self._generate_filename("Transcripcion_Completa", filename)))
             
             # Preparar datos del email
             email_data = {
@@ -250,7 +253,7 @@ class ResendEmailService:
             return False
         finally:
             # Limpiar archivos temporales
-            self._cleanup_temp_files([word_file_path, transcript_file_path])
+            self._cleanup_temp_files([acta_file_path, transcript_file_path])
     
     def _cleanup_temp_files(self, file_paths: list) -> None:
         """Limpiar archivos temporales."""
@@ -261,6 +264,20 @@ class ResendEmailService:
                 except Exception as e:
                     print(f"Error eliminando archivo temporal: {e}")
     
+    def _generate_filename(self, prefix: str, original_filename: str) -> str:
+        """Generar nombre de archivo para adjunto."""
+        clean_name = original_filename.replace('.', '_')
+        return f"{prefix}_{clean_name}.docx"
+    
+    def _configure_document_margins(self, doc: Document) -> None:
+        """Configurar márgenes estándar para documentos Word."""
+        sections = doc.sections
+        for section in sections:
+            section.top_margin = Inches(1)
+            section.bottom_margin = Inches(1)
+            section.left_margin = Inches(1)
+            section.right_margin = Inches(1)
+    
     def _create_attachment(self, file_path: str, filename: str) -> Dict[str, str]:
         """Crear adjunto para email desde archivo."""
         with open(file_path, 'rb') as file:
@@ -270,7 +287,7 @@ class ResendEmailService:
         return {
             "filename": filename,
             "content": content_base64,
-            "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            "content_type": WORD_MIME_TYPE
         }
     
     def _load_template(self) -> Optional[str]:
@@ -327,13 +344,8 @@ class ResendEmailService:
             # Crear documento Word
             doc = Document()
             
-            # Configurar márgenes
-            sections = doc.sections
-            for section in sections:
-                section.top_margin = Inches(1)
-                section.bottom_margin = Inches(1)
-                section.left_margin = Inches(1)
-                section.right_margin = Inches(1)
+            # Configurar márgenes estándar
+            self._configure_document_margins(doc)
             
             # Título principal
             title = doc.add_heading('ACTA DE REUNIÓN', 0)
@@ -424,13 +436,8 @@ class ResendEmailService:
             # Crear documento Word
             doc = Document()
             
-            # Configurar márgenes
-            sections = doc.sections
-            for section in sections:
-                section.top_margin = Inches(1)
-                section.bottom_margin = Inches(1)
-                section.left_margin = Inches(1)
-                section.right_margin = Inches(1)
+            # Configurar márgenes estándar
+            self._configure_document_margins(doc)
             
             # Título principal
             title = doc.add_heading('TRANSCRIPCIÓN COMPLETA', 0)
