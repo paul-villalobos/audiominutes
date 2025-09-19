@@ -1,0 +1,16 @@
+🔹 Activación (llevar al aha moment): “Número de actas profesionales generadas y entregadas por cliente activo por semana.”
+% de usuarios que llegan al aha moment: (usuarios que recibieron y descargaron el 1er acta ÷ usuarios que llenaron el formulario).
+
+🔹 Retención (repetición del aha)
+
+2nd Acta Rate: % de usuarios que generan una segunda acta dentro de 7 días.
+
+Actas por usuario por semana (APU/week): ¿cuántas veces reviven el “aha”?
+
+Retention curve (Día 1, 7, 30): mide si el hábito se instala o mueren después del primer uso.
+
+🔹 Referral (viral loop embebido en el producto)
+
+% de actas compartidas (con link o forward) en los primeros 7 días.
+
+Invitation rate: usuarios que recomiendan VoxCliente a un colega después del primer aha.
