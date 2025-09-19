@@ -17,6 +17,8 @@ class Settings(BaseSettings):
     assemblyai_api_key: str = Field(env="ASSEMBLYAI_API_KEY")
     openai_api_key: str = Field(env="OPENAI_API_KEY")
     resend_api_key: str = Field(env="RESEND_API_KEY")
+    posthog_api_key: str = Field(env="POSTHOG_API_KEY")
+    posthog_host: str = Field(default="https://app.posthog.com", env="POSTHOG_HOST")
     
     # Fixed settings for MVP (no env vars needed)
     max_file_size_mb: int = 100

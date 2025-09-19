@@ -1,9 +1,10 @@
 """Health check endpoints - Simplified for MVP."""
 
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
 from typing import Optional
 import tempfile
 import os
+from datetime import datetime
 
 from voxcliente.config import settings
 from voxcliente.utils import validate_audio_file, validate_email, sanitize_filename
@@ -57,6 +58,7 @@ async def validate_file(
 
 @router.post("/transcribe")
 async def transcribe_audio(
+    request: Request,
     file: UploadFile = File(...),
     email: str = Form(...)
 ):
@@ -73,6 +75,18 @@ async def transcribe_audio(
     if not is_file_valid:
         raise HTTPException(status_code=400, detail=file_error)
     
+    # Tracking al inicio - form_submit
+    posthog = request.app.state.posthog
+    posthog.capture(
+        distinct_id=email,
+        event='form_submit',
+        properties={
+            'filename': file.filename,
+            'file_size_mb': round(file.size / 1024 / 1024, 2),
+            'timestamp': datetime.now().isoformat()
+        }
+    )
+    
     try:
         # Guardar archivo temporalmente
         with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
@@ -81,17 +95,53 @@ async def transcribe_audio(
             temp_file_path = temp_file.name
         
         # Transcribir archivo directamente (AssemblyAI maneja el upload internamente)
-        transcript = assemblyai_service.transcribe_file(temp_file_path)
-        if not transcript:
+        transcription_result = assemblyai_service.transcribe_file(temp_file_path)
+        if not transcription_result:
             raise HTTPException(status_code=500, detail="Error en la transcripción")
         
+        transcript = transcription_result['transcript']
+        assemblyai_cost = transcription_result['assemblyai_cost']['cost_usd']
+        duration_minutes = transcription_result['assemblyai_cost']['duration_minutes']
+        
         # Generar acta profesional usando OpenAI
-        acta = openai_service.generate_acta(transcript)
-        if not acta:
+        acta_result = openai_service.generate_acta(transcript)
+        if not acta_result:
             raise HTTPException(status_code=500, detail="Error generando acta")
+        
+        # Extraer acta y costos de OpenAI
+        acta = {k: v for k, v in acta_result.items() if k not in ['openai_usage', 'openai_cost']}
+        openai_cost = acta_result['openai_cost']['total_cost_usd']
         
         # Enviar acta por email con transcripción adjunta
         email_sent = resend_email_service.send_acta_email(email, acta, file.filename, transcript)
+        
+        # Calcular costo total real
+        # AssemblyAI: costo real de la API
+        # OpenAI: costo real de la API
+        # Email: $0.0004 por email (Resend)
+        email_cost = 0.0004
+        total_cost = round(assemblyai_cost + openai_cost + email_cost, 6)
+        
+        # Tracking al final - acta_generated
+        posthog.capture(
+            distinct_id=email,
+            event='acta_generated',
+            properties={
+                'filename': file.filename,
+                'duration_minutes': duration_minutes,
+                'file_size_mb': round(file.size / 1024 / 1024, 2),
+                'cost_usd': total_cost,
+                'cost_breakdown': {
+                    'assemblyai_cost_usd': assemblyai_cost,
+                    'openai_cost_usd': openai_cost,
+                    'email_cost_usd': email_cost
+                },
+                'openai_usage': acta_result['openai_usage'],
+                'assemblyai_usage': transcription_result['assemblyai_usage'],
+                'email_sent': email_sent,
+                'timestamp': datetime.now().isoformat()
+            }
+        )
         
         # Limpiar archivo temporal
         os.unlink(temp_file_path)
@@ -103,6 +153,15 @@ async def transcribe_audio(
             "transcript": transcript,
             "acta": acta,
             "email_sent": email_sent,
+            "duration_minutes": duration_minutes,
+            "cost_usd": total_cost,
+            "cost_breakdown": {
+                "assemblyai_cost_usd": assemblyai_cost,
+                "openai_cost_usd": openai_cost,
+                "email_cost_usd": email_cost
+            },
+            "openai_usage": acta_result['openai_usage'],
+            "assemblyai_usage": transcription_result['assemblyai_usage'],
             "message": "Transcripción completada y acta enviada por email" if email_sent else "Transcripción completada, pero error enviando email"
         }
         

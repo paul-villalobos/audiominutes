@@ -21,6 +21,7 @@ python-docx = ">=1.1.0"
 
 # Testing configuration removed - pytest not included in MVP dependencies
 openai = "^1.107.3"
+posthog = "^6.7.5"
 
 
 [build-system]

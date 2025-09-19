@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
+from posthog import Posthog
 
 from voxcliente.config import settings
 from voxcliente.api import router as health_router
@@ -20,6 +21,10 @@ def create_app() -> FastAPI:
         docs_url="/docs" if settings.debug else None,
         redoc_url="/redoc" if settings.debug else None,
     )
+    
+    # Initialize PostHog
+    posthog = Posthog(settings.posthog_api_key, host=settings.posthog_host)
+    app.state.posthog = posthog
     
     # Add CORS middleware
     app.add_middleware(

@@ -36,12 +36,13 @@ class AssemblyAIService:
         config.set_custom_spelling(
             {
                 "LAIVE": ["laib", "Laibe"],
+                "HORECA": ["Oreka"],
             }
         )
 
         self.transcriber = aai.Transcriber(config=config)
     
-    def transcribe_file(self, file_path: str) -> Optional[str]:
+    def transcribe_file(self, file_path: str) -> Optional[Dict[str, Any]]:
         """
         Transcribir archivo local usando AssemblyAI con utterances.
         Basado en la documentación oficial de AssemblyAI.
@@ -50,11 +51,14 @@ class AssemblyAIService:
             file_path: Ruta del archivo local
             
         Returns:
-            Transcripción del audio con información de hablantes o None si hay error
+            Diccionario con transcripción y información de costos o None si hay error
         """
         try:
             # Transcribir archivo local directamente
             transcript = self.transcriber.transcribe(file_path)
+            
+            # Guardar respuesta de AssemblyAI en archivo local para debugging
+            self._save_assemblyai_response(transcript, file_path)
             
             # Verificar si la transcripción fue exitosa
             if transcript.status == aai.TranscriptStatus.error:
@@ -62,18 +66,103 @@ class AssemblyAIService:
                 return None
             
             # Procesar utterances para obtener texto con información de hablantes
+            formatted_text = ""
             if transcript.utterances:
-                formatted_text = ""
                 for utterance in transcript.utterances:
                     formatted_text += f"Hablante {utterance.speaker}: {utterance.text}\n"
-                return formatted_text.strip()
+                formatted_text = formatted_text.strip()
             else:
                 # Fallback al texto completo si no hay utterances
-                return transcript.text if transcript.text else None
+                formatted_text = transcript.text if transcript.text else None
+            
+            if not formatted_text:
+                return None
+            
+            # Calcular duración y costo de AssemblyAI
+            # AssemblyAI cobra $0.27 por hora (Universal) = $0.0045 por minuto
+            # Usamos Universal por defecto (incluye speaker labels, punctuation, etc.)
+            duration_minutes = transcript.audio_duration / 60 if transcript.audio_duration else 0
+            assemblyai_cost = duration_minutes * 0.0045
+            
+            return {
+                'transcript': formatted_text,
+                'assemblyai_usage': {
+                    'audio_duration_seconds': transcript.audio_duration,
+                    'audio_duration_minutes': round(duration_minutes, 2),
+                    'confidence': transcript.confidence
+                },
+                'assemblyai_cost': {
+                    'duration_minutes': round(duration_minutes, 2),
+                    'cost_usd': round(assemblyai_cost, 6)
+                }
+            }
             
         except Exception as e:
             print(f"Error en transcripción: {e}")
             return None
+    
+    def _save_assemblyai_response(self, transcript, file_path: str) -> None:
+        """Guardar respuesta de AssemblyAI en archivo local para debugging."""
+        try:
+            # Crear directorio de logs si no existe
+            logs_dir = Path("logs")
+            logs_dir.mkdir(exist_ok=True)
+            
+            # Generar nombre de archivo con timestamp al inicio para ordenamiento cronológico
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{timestamp}_assemblyai_response.txt"
+            log_file_path = logs_dir / filename
+            
+            # Extraer información del transcript
+            status = transcript.status
+            confidence = getattr(transcript, 'confidence', 'N/A')
+            audio_duration = getattr(transcript, 'audio_duration', 'N/A')
+            text = getattr(transcript, 'text', 'N/A')
+            utterances_count = len(transcript.utterances) if transcript.utterances else 0
+            
+            # Crear contenido del archivo
+            content = f"""
+=== RESPUESTA DE ASSEMBLYAI ===
+Timestamp: {datetime.now().isoformat()}
+Archivo procesado: {Path(file_path).name}
+Status: {status}
+Confidence: {confidence}
+Duración audio (segundos): {audio_duration}
+Número de utterances: {utterances_count}
+
+=== TEXTO COMPLETO ===
+{text}
+
+=== UTTERANCES (HABLANTES) ===
+"""
+            
+            # Agregar utterances si existen
+            if transcript.utterances:
+                for i, utterance in enumerate(transcript.utterances):
+                    content += f"Utterance {i+1}:\n"
+                    content += f"  Speaker: {utterance.speaker}\n"
+                    content += f"  Text: {utterance.text}\n"
+                    content += f"  Confidence: {getattr(utterance, 'confidence', 'N/A')}\n"
+                    content += f"  Start: {getattr(utterance, 'start', 'N/A')}ms\n"
+                    content += f"  End: {getattr(utterance, 'end', 'N/A')}ms\n\n"
+            else:
+                content += "No hay utterances disponibles\n"
+            
+            content += f"""
+=== METADATOS COMPLETOS ===
+{transcript}
+
+=== FIN DE RESPUESTA ===
+"""
+            
+            # Guardar archivo
+            with open(log_file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            print(f"📁 Respuesta de AssemblyAI guardada en: {log_file_path}")
+            
+        except Exception as e:
+            print(f"⚠️ Error guardando respuesta de AssemblyAI: {e}")
 
 
 class OpenAIService:
@@ -92,7 +181,7 @@ class OpenAIService:
             transcript: Transcripción del audio
             
         Returns:
-            Diccionario con resumen_ejecutivo y acta completa o None si hay error
+            Diccionario con resumen_ejecutivo, acta completa y costos o None si hay error
         """
         try:
             # Cargar prompt desde archivo
@@ -102,18 +191,42 @@ class OpenAIService:
                 return None
             
             response = self.client.chat.completions.create(
-                model="gpt-4.1-mini",
+                model="gpt-5-mini",
                 messages=[
                     {"role": "system", "content": prompt_template},
                     {"role": "user", "content": transcript}
                 ],
-                max_tokens=4000,    
-                temperature=0.3
+                # temperature=0.3 # gpt-5-mini no soporta temperature
             )
             
             # Parsear respuesta JSON
             raw_response = response.choices[0].message.content
+            
+            # Guardar respuesta de OpenAI en archivo local para debugging
+            self._save_openai_response(raw_response, transcript[:50])
+            
             parsed_data = self._parse_response(raw_response)
+            
+            # Agregar información de costos
+            if parsed_data:
+                parsed_data['openai_usage'] = {
+                    'prompt_tokens': response.usage.prompt_tokens,
+                    'completion_tokens': response.usage.completion_tokens,
+                    'total_tokens': response.usage.total_tokens
+                }
+                
+                # Calcular costo real (precios de GPT-5-mini)
+                # Input: $0.25 per 1M tokens = $0.00025 per 1K tokens
+                # Output: $2 per 1M tokens = $0.002 per 1K tokens
+                input_cost = (response.usage.prompt_tokens / 1000) * 0.00025
+                output_cost = (response.usage.completion_tokens / 1000) * 0.002
+                total_openai_cost = input_cost + output_cost
+                
+                parsed_data['openai_cost'] = {
+                    'input_cost_usd': round(input_cost, 6),
+                    'output_cost_usd': round(output_cost, 6),
+                    'total_cost_usd': round(total_openai_cost, 6)
+                }
             
             return parsed_data
             
@@ -129,18 +242,64 @@ class OpenAIService:
             print(f"Error cargando prompt: {e}")
             return None
     
+    def _save_openai_response(self, response: str, transcript_preview: str) -> None:
+        """Guardar respuesta de OpenAI en archivo local para debugging."""
+        try:
+            # Crear directorio de logs si no existe
+            logs_dir = Path("logs")
+            logs_dir.mkdir(exist_ok=True)
+            
+            # Generar nombre de archivo con timestamp al inicio para ordenamiento cronológico
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"{timestamp}_openai_response.txt"
+            file_path = logs_dir / filename
+            
+            # Crear contenido del archivo
+            content = f"""
+=== RESPUESTA DE OPENAI ===
+Timestamp: {datetime.now().isoformat()}
+Modelo: gpt-5-mini
+Transcripción (primeros 50 chars): {transcript_preview}
+
+=== RESPUESTA COMPLETA ===
+{response}
+
+=== FIN DE RESPUESTA ===
+"""
+            
+            # Guardar archivo
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+            
+            print(f"📁 Respuesta de OpenAI guardada en: {file_path}")
+            
+        except Exception as e:
+            print(f"⚠️ Error guardando respuesta de OpenAI: {e}")
+    
     def _parse_response(self, raw_response: str) -> Optional[Dict[str, Any]]:
         """Parsear respuesta JSON de OpenAI."""
         try:
-            # Extraer JSON entre las etiquetas <output> y </output>
+            # Intentar múltiples formatos de parsing
+            
+            # 1. Buscar JSON entre etiquetas <output> y </output>
             pattern = r'<output>(.*?)</output>'
             match = re.search(pattern, raw_response, re.DOTALL)
             
-            if not match:
-                print("Error: No se encontró JSON entre etiquetas <output>")
-                return None
-            
-            json_str = match.group(1).strip()
+            if match:
+                json_str = match.group(1).strip()
+                print(f"✅ JSON encontrado entre etiquetas <output>: {json_str[:100]}...")
+            else:
+                # 2. Buscar JSON entre ```json y ```
+                pattern = r'```json\s*(.*?)\s*```'
+                match = re.search(pattern, raw_response, re.DOTALL)
+                
+                if match:
+                    json_str = match.group(1).strip()
+                    print(f"✅ JSON encontrado entre ```json: {json_str[:100]}...")
+                else:
+                    # 3. Buscar JSON directo (sin etiquetas)
+                    json_str = raw_response.strip()
+                    print(f"⚠️ Intentando parsear respuesta directa: {json_str[:100]}...")
             
             # Parsear JSON
             parsed_data = json.loads(json_str)
@@ -153,10 +312,12 @@ class OpenAIService:
             return parsed_data
             
         except json.JSONDecodeError as e:
-            print(f"Error parseando JSON: {e}")
+            print(f"❌ Error parseando JSON: {e}")
+            print(f"📄 Respuesta completa de OpenAI: {raw_response}")
             return None
         except Exception as e:
-            print(f"Error procesando respuesta: {e}")
+            print(f"❌ Error procesando respuesta: {e}")
+            print(f"📄 Respuesta completa de OpenAI: {raw_response}")
             return None
     
     def _validate_structure(self, data: Dict[str, Any]) -> bool:
@@ -251,9 +412,6 @@ class ResendEmailService:
         except Exception as e:
             print(f"Error enviando email: {e}")
             return False
-        finally:
-            # Limpiar archivos temporales
-            self._cleanup_temp_files([acta_file_path, transcript_file_path])
     
     def _cleanup_temp_files(self, file_paths: list) -> None:
         """Limpiar archivos temporales."""

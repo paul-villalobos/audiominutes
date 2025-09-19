@@ -222,7 +222,6 @@ posthog.capture(email, 'total_acta_cost', {
    ```python
    # En config.py
    POSTHOG_API_KEY = "your-api-key"
-   POSTHOG_HOST = "https://app.posthog.com"
    ```
 
 3. **Modificar endpoint `/transcribe`**
