@@ -103,6 +103,10 @@ class AssemblyAIService:
     
     def _save_assemblyai_response(self, transcript, file_path: str) -> None:
         """Guardar respuesta de AssemblyAI en archivo local para debugging."""
+        # Solo guardar si está habilitado el logging de APIs
+        if not settings.should_log_apis:
+            return
+            
         try:
             # Crear directorio de logs si no existe
             logs_dir = Path("logs")
@@ -244,6 +248,10 @@ class OpenAIService:
     
     def _save_openai_response(self, response: str, transcript_preview: str) -> None:
         """Guardar respuesta de OpenAI en archivo local para debugging."""
+        # Solo guardar si está habilitado el logging de APIs
+        if not settings.should_log_apis:
+            return
+            
         try:
             # Crear directorio de logs si no existe
             logs_dir = Path("logs")

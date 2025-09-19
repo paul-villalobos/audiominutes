@@ -1,5 +1,6 @@
 """Configuration settings for VoxCliente."""
 
+from typing import Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -20,6 +21,7 @@ class Settings(BaseSettings):
     posthog_api_key: str = Field(env="POSTHOG_API_KEY")
     posthog_host: str = Field(default="https://app.posthog.com", env="POSTHOG_HOST")
     
+    
     # Fixed settings for MVP (no env vars needed)
     max_file_size_mb: int = 100
     allowed_audio_formats: str = "wav,mp3,m4a"
@@ -36,6 +38,11 @@ class Settings(BaseSettings):
     def allowed_origins_list(self) -> list[str]:
         """Convert comma-separated string to list."""
         return [origin.strip() for origin in self.allowed_origins.split(",")]
+    
+    @property
+    def should_log_apis(self) -> bool:
+        """Determinar si debemos loggear respuestas de APIs."""
+        return self.debug  # Solo en modo debug
     
     model_config = {
         "env_file": ".env",
