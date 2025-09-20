@@ -45,10 +45,28 @@ posthog.capture(email, 'acta_generated', {'cost_usd': total_cost})
 - ✅ **Dashboard**: Automático
 - ✅ **Métricas**: Automáticas
 - ✅ **Costo**: Gratis hasta 1M eventos/mes
+- ✅ **Simplicidad**: Solo 6 eventos en lugar de 12
 
 ---
 
-## 📊 Eventos a Capturar
+## 📊 Eventos a Capturar (Simplificados)
+
+### **Resumen de Eventos Consolidados**
+
+| **Sección**    | **Eventos**                                          | **Total**     |
+| -------------- | ---------------------------------------------------- | ------------- |
+| **ACTIVACIÓN** | `form_submit`, `acta_generated`, `acta_downloaded`   | 3             |
+| **RETENCIÓN**  | _(Consolidado en `acta_generated`)_                  | 0             |
+| **REFERRAL**   | `acta_shared`, `referral_sent`, `referral_converted` | 3             |
+| **COSTOS**     | _(Consolidado en `acta_generated`)_                  | 0             |
+| **TOTAL**      |                                                      | **6 eventos** |
+
+### **Ventajas de la Consolidación**
+
+- ✅ **Simplicidad**: 6 eventos en lugar de 12
+- ✅ **PostHog automático**: Todos los indicadores calculables
+- ✅ **Cero mantenimiento**: Sin lógica adicional
+- ✅ **Dashboard limpio**: Información consolidada
 
 ### 🔹 ACTIVACIÓN (Aha Moment)
 
@@ -88,29 +106,37 @@ posthog.capture(email, 'acta_downloaded', {
 
 ### 🔄 RETENCIÓN (Repetición del Aha)
 
-#### **Evento: `second_acta_generated`**
+#### **Evento: `acta_generated` (Consolidado)**
 
 ```python
-# Al final del endpoint /transcribe (si es segunda acta)
-posthog.capture(email, 'second_acta_generated', {
+# Al final del endpoint /transcribe (después de enviar email)
+# PostHog calcula automáticamente todos los indicadores de retención
+posthog.capture(email, 'acta_generated', {
     'filename': file.filename,
     'duration_minutes': duration_minutes,
-    'days_since_first_acta': days_since_first,
+    'file_size_mb': file.size / 1024 / 1024,
+    'cost_usd': total_cost,
+    'cost_breakdown': {
+        'transcription': duration_minutes * 0.006,
+        'llm': (input_tokens * 0.00015 + output_tokens * 0.0006) / 1000,
+        'email': 0.0004
+    },
+    'provider_details': {
+        'transcription_provider': 'AssemblyAI',
+        'llm_model': 'GPT-4.1-mini',
+        'email_provider': 'Resend'
+    },
     'timestamp': datetime.now().isoformat()
 })
 ```
 
-#### **Evento: `weekly_acta_generated`**
+#### **Indicadores de Retención Calculables Automáticamente en PostHog**
 
-```python
-# Al final del endpoint /transcribe
-posthog.capture(email, 'weekly_acta_generated', {
-    'filename': file.filename,
-    'week_number': datetime.now().isocalendar()[1],
-    'actas_this_week': actas_this_week,
-    'timestamp': datetime.now().isoformat()
-})
-```
+- ✅ **Segunda acta rate**: PostHog identifica usuarios con múltiples eventos automáticamente
+- ✅ **Retención por día**: Análisis automático de cohortes por fecha
+- ✅ **Retención curve**: Generación automática (día 1, 7, 30)
+- ✅ **APU (Actas Por Usuario)**: Cálculo automático de promedio por usuario
+- ✅ **Cohort analysis**: Agrupación automática por semana de registro
 
 ### 📤 REFERRAL (Viral Loop)
 
@@ -149,57 +175,38 @@ posthog.capture(email, 'referral_converted', {
 
 ### 💰 COSTOS (Modelo de Pricing)
 
-#### **Evento: `transcription_cost`**
+#### **Evento: `acta_generated` (Consolidado)**
 
 ```python
-# Después de transcribir con AssemblyAI
-posthog.capture(email, 'transcription_cost', {
+# Al final del endpoint /transcribe (después de enviar email)
+# Incluye todos los costos en un solo evento
+posthog.capture(email, 'acta_generated', {
+    'filename': file.filename,
     'duration_minutes': duration_minutes,
-    'cost_usd': duration_minutes * 0.006,
-    'provider': 'AssemblyAI',
-    'timestamp': datetime.now().isoformat()
-})
-```
-
-#### **Evento: `llm_processing_cost`**
-
-```python
-# Después de generar acta con OpenAI
-posthog.capture(email, 'llm_processing_cost', {
-    'input_tokens': input_tokens,
-    'output_tokens': output_tokens,
-    'cost_usd': (input_tokens * 0.00015 + output_tokens * 0.0006) / 1000,
-    'model': 'GPT-4.1-mini',
-    'timestamp': datetime.now().isoformat()
-})
-```
-
-#### **Evento: `email_cost`**
-
-```python
-# Después de enviar email con Resend
-posthog.capture(email, 'email_cost', {
-    'email_count': 1,
-    'cost_usd': 0.0004,
-    'provider': 'Resend',
-    'timestamp': datetime.now().isoformat()
-})
-```
-
-#### **Evento: `total_acta_cost`**
-
-```python
-# Al final del proceso completo
-posthog.capture(email, 'total_acta_cost', {
-    'total_cost_usd': total_cost,
+    'file_size_mb': file.size / 1024 / 1024,
+    'cost_usd': total_cost,
     'cost_breakdown': {
-        'transcription': transcription_cost,
-        'llm': llm_cost,
-        'email': email_cost
+        'transcription': duration_minutes * 0.006,
+        'llm': (input_tokens * 0.00015 + output_tokens * 0.0006) / 1000,
+        'email': 0.0004
+    },
+    'provider_details': {
+        'transcription_provider': 'AssemblyAI',
+        'llm_model': 'GPT-4.1-mini',
+        'email_provider': 'Resend'
     },
     'timestamp': datetime.now().isoformat()
 })
 ```
+
+#### **Indicadores de Costo Calculables en PostHog**
+
+- ✅ **Costo promedio por acta**: `average(acta_generated.cost_usd)`
+- ✅ **Tendencia de costos**: `group_by_day(acta_generated.cost_usd)`
+- ✅ **Distribución de costos**: `histogram(acta_generated.cost_usd)`
+- ✅ **Costo total por período**: `sum(acta_generated.cost_usd, "7d")`
+- ✅ **Costo por usuario**: `sum(acta_generated.cost_usd) / unique_users(acta_generated)`
+- ✅ **Desglose por proveedor**: Análisis automático de `cost_breakdown`
 
 ---
 
@@ -290,36 +297,49 @@ posthog.capture(email, 'total_acta_cost', {
 
 ### **Fase 3: Métricas de Retención (Día 3)**
 
-#### **Objetivo**: Implementar tracking de retención
+#### **Objetivo**: Configurar análisis automático de retención en PostHog
 
 #### **Tareas**:
 
-1. **Agregar tracking de segunda acta**
+1. **Configurar análisis de retención en PostHog**
 
-   ```python
-   # En endpoint /transcribe
-   # Verificar si es segunda acta del usuario
-   user_actas = posthog.get_events(email, 'acta_generated')
-   if len(user_actas) == 1:  # Es segunda acta
-       posthog.capture(email, 'second_acta_generated', {
-           'filename': file.filename,
-           'days_since_first_acta': days_since_first
-       })
-   ```
+   **Paso 1: Crear Insight de Retención**
 
-2. **Configurar análisis de retención**
-   - En PostHog: Events → Retention
-   - Configurar: Event `acta_generated`, períodos 1d, 7d, 30d
+   - Ir a PostHog → Insights → New Insight
+   - Seleccionar "Retention" como tipo de insight
+   - Configurar:
+     - **Event**: `acta_generated`
+     - **Period**: 1 day, 7 days, 30 days
+     - **Group by**: None (todos los usuarios)
+
+   **Paso 2: Crear Cohort Analysis**
+
+   - Ir a PostHog → Cohorts → New Cohort
+   - Crear cohorte "Usuarios con Segunda Acta"
+   - Configurar: usuarios que han generado `acta_generated` más de 1 vez
+
+   **Paso 3: Crear Dashboard de Retención**
+
+   - Ir a PostHog → Dashboards → New Dashboard
+   - Agregar gráficos:
+     - Retention curve (1d, 7d, 30d)
+     - Cohort analysis por semana
+     - Segunda acta rate
+
+2. **Configurar alertas de retención**
+   - En PostHog: Alerts → New Alert
+   - Crear alerta: "Retención 7 días < 30%"
+   - Configurar notificación por email/Slack
 
 #### **Entregables**:
 
-- ✅ Tracking de segunda acta funcionando
-- ✅ Análisis de retención configurado
-- ✅ Métricas de retención visibles
+- ✅ Análisis de retención configurado automáticamente
+- ✅ Dashboard de retención funcionando
+- ✅ Alertas de retención configuradas
 
 ### **Fase 4: Métricas de Referral (Día 4)**
 
-#### **Objetivo**: Implementar sistema de referral
+#### **Objetivo**: Implementar sistema de referral y configurar análisis en PostHog
 
 #### **Tareas**:
 
@@ -350,64 +370,114 @@ posthog.capture(email, 'total_acta_cost', {
        return templates.TemplateResponse("referral_form.html", {"email": email})
    ```
 
-3. **Configurar análisis de referral**
-   - En PostHog: Events → Cohorts
-   - Crear cohorte: usuarios que han compartido actas
+3. **Configurar análisis de referral en PostHog**
+
+   **Paso 1: Crear Funnel de Referral**
+
+   - Ir a PostHog → Insights → New Insight
+   - Seleccionar "Funnel" como tipo de insight
+   - Configurar steps:
+     - `acta_generated` → `acta_shared` → `referral_sent` → `referral_converted`
+
+   **Paso 2: Crear Cohort de Usuarios Referidores**
+
+   - Ir a PostHog → Cohorts → New Cohort
+   - Crear cohorte "Usuarios Referidores"
+   - Configurar: usuarios que han ejecutado `acta_shared`
+
+   **Paso 3: Crear Dashboard de Referral**
+
+   - Ir a PostHog → Dashboards → New Dashboard
+   - Agregar gráficos:
+     - Funnel de referral
+     - % de usuarios que comparten actas
+     - Tasa de conversión de referidos
 
 #### **Entregables**:
 
 - ✅ Sistema de referral funcionando
 - ✅ Tracking de compartir funcionando
-- ✅ Métricas de referral visibles
+- ✅ Análisis de referral configurado en PostHog
 
 ### **Fase 5: Métricas de Costos (Día 5)**
 
-#### **Objetivo**: Implementar tracking detallado de costos
+#### **Objetivo**: Implementar tracking consolidado de costos
 
 #### **Tareas**:
 
-1. **Modificar servicios para tracking de costos**
+1. **Modificar endpoint `/transcribe` para incluir costos**
 
    ```python
-   # En AssemblyAIService
-   async def transcribe(self, audio_file):
-       # ... transcripción existente ...
+   @app.post("/transcribe")
+   async def transcribe_audio(file: UploadFile, email: str):
+       # ... código existente de transcripción y generación ...
 
-       # Tracking de costo
-       cost = duration_minutes * 0.006
-       posthog.capture(email, 'transcription_cost', {
+       # Calcular costos
+       transcription_cost = duration_minutes * 0.006
+       llm_cost = (input_tokens * 0.00015 + output_tokens * 0.0006) / 1000
+       email_cost = 0.0004
+       total_cost = transcription_cost + llm_cost + email_cost
+
+       # Tracking consolidado con todos los costos
+       posthog.capture(email, 'acta_generated', {
+           'filename': file.filename,
            'duration_minutes': duration_minutes,
-           'cost_usd': cost,
-           'provider': 'AssemblyAI'
+           'file_size_mb': file.size / 1024 / 1024,
+           'cost_usd': total_cost,
+           'cost_breakdown': {
+               'transcription': transcription_cost,
+               'llm': llm_cost,
+               'email': email_cost
+           },
+           'provider_details': {
+               'transcription_provider': 'AssemblyAI',
+               'llm_model': 'GPT-4.1-mini',
+               'email_provider': 'Resend'
+           },
+           'timestamp': datetime.now().isoformat()
        })
-
-       return transcription
-
-   # En OpenAIService
-   async def generate_acta(self, transcription):
-       # ... generación existente ...
-
-       # Tracking de costo
-       cost = (input_tokens * 0.00015 + output_tokens * 0.0006) / 1000
-       posthog.capture(email, 'llm_processing_cost', {
-           'input_tokens': input_tokens,
-           'output_tokens': output_tokens,
-           'cost_usd': cost,
-           'model': 'GPT-4.1-mini'
-       })
-
-       return acta
    ```
 
-2. **Configurar análisis de costos**
-   - En PostHog: Events → Insights
-   - Crear gráficos: costo promedio por acta, tendencias de costos
+2. **Configurar análisis de costos en PostHog**
+
+   **Paso 1: Crear Insight de Costos**
+
+   - Ir a PostHog → Insights → New Insight
+   - Seleccionar "Trends" como tipo de insight
+   - Configurar:
+     - **Event**: `acta_generated`
+     - **Property**: `cost_usd`
+     - **Aggregation**: Average, Sum
+     - **Breakdown**: Por día/semana
+
+   **Paso 2: Crear Insight de Distribución de Costos**
+
+   - Ir a PostHog → Insights → New Insight
+   - Seleccionar "Distribution" como tipo de insight
+   - Configurar:
+     - **Event**: `acta_generated`
+     - **Property**: `cost_usd`
+     - **Chart type**: Histogram
+
+   **Paso 3: Crear Insight de Desglose por Proveedor**
+
+   - Ir a PostHog → Insights → New Insight
+   - Seleccionar "Breakdown" como tipo de insight
+   - Configurar:
+     - **Event**: `acta_generated`
+     - **Property**: `cost_breakdown.transcription`, `cost_breakdown.llm`, `cost_breakdown.email`
+
+   **Paso 4: Configurar Alertas de Costos**
+
+   - En PostHog: Alerts → New Alert
+   - Crear alerta: "Costo promedio por acta > $0.30"
+   - Configurar notificación por email/Slack
 
 #### **Entregables**:
 
-- ✅ Tracking de costos funcionando
-- ✅ Análisis de costos configurado
-- ✅ Métricas de costos visibles
+- ✅ Tracking consolidado de costos funcionando
+- ✅ Análisis automático de costos configurado
+- ✅ Métricas de costos visibles con 1 evento
 
 ### **Fase 6: Dashboard y Alertas (Día 6)**
 
@@ -415,21 +485,70 @@ posthog.capture(email, 'total_acta_cost', {
 
 #### **Tareas**:
 
-1. **Configurar dashboard en PostHog**
+1. **Configurar dashboard completo en PostHog**
 
-   - Crear dashboard con métricas principales
-   - Agregar gráficos de activación, retención, costos
-   - Configurar actualización automática
+   **Paso 1: Crear Dashboard Principal**
 
-2. **Configurar alertas**
+   - Ir a PostHog → Dashboards → New Dashboard
+   - Nombre: "VoxCliente Analytics Dashboard"
 
-   ```python
-   # En PostHog: Alerts
-   # Crear alertas para:
-   # - Retención < 25%
-   # - Costo por acta > $0.30
-   # - Actas generadas < 10 por día
-   ```
+   **Paso 2: Agregar Gráficos de Activación**
+
+   - Agregar Insight: Funnel de activación (form_submit → acta_generated → acta_downloaded)
+   - Agregar Insight: Trend de actas generadas por día
+   - Agregar Insight: Tasa de activación por semana
+
+   **Paso 3: Agregar Gráficos de Retención**
+
+   - Agregar Insight: Retention curve (1d, 7d, 30d)
+   - Agregar Insight: Cohort analysis por semana
+   - Agregar Insight: Segunda acta rate
+
+   **Paso 4: Agregar Gráficos de Costos**
+
+   - Agregar Insight: Costo promedio por acta (trend)
+   - Agregar Insight: Distribución de costos (histogram)
+   - Agregar Insight: Desglose por proveedor (pie chart)
+
+   **Paso 5: Agregar Gráficos de Referral**
+
+   - Agregar Insight: Funnel de referral
+   - Agregar Insight: % de usuarios que comparten actas
+   - Agregar Insight: Tasa de conversión de referidos
+
+   **Paso 6: Configurar Actualización Automática**
+
+   - Configurar refresh cada 1 hora
+   - Configurar exportación automática a Slack/Email
+
+2. **Configurar alertas críticas**
+
+   **Paso 1: Crear Alerta de Retención**
+
+   - Ir a PostHog → Alerts → New Alert
+   - Configurar:
+     - **Insight**: Retention (7 días)
+     - **Condition**: < 25%
+     - **Notification**: Email + Slack
+     - **Frequency**: Daily
+
+   **Paso 2: Crear Alerta de Costos**
+
+   - Ir a PostHog → Alerts → New Alert
+   - Configurar:
+     - **Insight**: Average cost per acta
+     - **Condition**: > $0.30
+     - **Notification**: Email + Slack
+     - **Frequency**: Daily
+
+   **Paso 3: Crear Alerta de Volumen**
+
+   - Ir a PostHog → Alerts → New Alert
+   - Configurar:
+     - **Insight**: Actas generadas por día
+     - **Condition**: < 10
+     - **Notification**: Email + Slack
+     - **Frequency**: Daily
 
 3. **Crear endpoint de métricas simples**
    ```python
@@ -441,7 +560,9 @@ posthog.capture(email, 'total_acta_cost', {
            "total_users": posthog.get_unique_users("acta_generated", "30d"),
            "activation_rate": posthog.get_funnel_conversion("form_submit", "acta_generated"),
            "retention_rate": posthog.get_retention("acta_generated", "7d"),
-           "avg_cost": posthog.get_average("acta_generated", "cost_usd")
+           "avg_cost_per_acta": posthog.get_average("acta_generated", "cost_usd"),
+           "total_cost_week": posthog.get_sum("acta_generated", "cost_usd", "7d"),
+           "cost_per_user": posthog.get_sum("acta_generated", "cost_usd", "30d") / posthog.get_unique_users("acta_generated", "30d")
        }
    ```
 
@@ -486,7 +607,9 @@ posthog.capture(email, 'total_acta_cost', {
 - ✅ **Trend de actas generadas** (por día/semana)
 - ✅ **Cohort analysis** (retención por semana)
 - ✅ **Funnel de activación** (form_submit → acta_generated → acta_downloaded)
-- ✅ **Distribución de costos** (por proveedor)
+- ✅ **Distribución de costos** (histograma automático de cost_usd)
+- ✅ **Tendencia de costos** (promedio por día/semana)
+- ✅ **Desglose de costos** (análisis automático de cost_breakdown)
 - ✅ **Retención curve** (día 1, 7, 30)
 
 ---
@@ -541,6 +664,7 @@ pip install posthog
 - ✅ **Dashboard automático** sin desarrollo
 - ✅ **Métricas automáticas** sin configuración
 - ✅ **Cero mantenimiento** del sistema
+- ✅ **6 eventos consolidados** en lugar de 12 separados
 
 ### **Funcionalidades**
 
@@ -601,6 +725,7 @@ pip install posthog
 ---
 
 **Fecha de creación**: $(date)
-**Versión**: 1.0
+**Versión**: 2.0
 **Estado**: Listo para implementación
 **Filosofía**: Simplicidad primero - 100% de métricas con 1% del esfuerzo
+**Mejoras**: Consolidación de eventos (12 → 6), instrucciones detalladas de PostHog
