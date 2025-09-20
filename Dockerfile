@@ -31,5 +31,5 @@ RUN mkdir -p /app/uploads && chmod 755 /app/uploads
 # Exponer puerto 8000
 EXPOSE 8000
 
-# Comando para ejecutar la aplicación
-CMD ["uvicorn", "voxcliente.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Comando para ejecutar la aplicación con logging detallado
+CMD ["uvicorn", "voxcliente.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-level", "info", "--access-log"]

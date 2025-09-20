@@ -1,5 +1,6 @@
 """Health check endpoints - Simplified for MVP."""
 
+import logging
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
 from typing import Optional
 import tempfile
@@ -9,6 +10,8 @@ from datetime import datetime
 from voxcliente.config import settings
 from voxcliente.utils import validate_audio_file, validate_email, sanitize_filename
 from voxcliente.services import assemblyai_service, openai_service, resend_email_service
+
+logger = logging.getLogger(__name__)
 
 
 router = APIRouter()
@@ -125,11 +128,23 @@ def _process_audio_pipeline(temp_file_path: str, email: str, filename: str) -> d
 @router.get("/health")
 async def health_check():
     """Simple health check endpoint."""
-    return {
-        "status": "healthy",
-        "app": settings.app_name,
-        "version": settings.app_version
-    }
+    logger.info("Health check solicitado")
+    try:
+        return {
+            "status": "healthy",
+            "app": settings.app_name,
+            "version": settings.app_version,
+            "debug": settings.debug,
+            "env_vars_loaded": {
+                "assemblyai": bool(settings.assemblyai_api_key),
+                "openai": bool(settings.openai_api_key),
+                "resend": bool(settings.resend_api_key),
+                "posthog": bool(settings.posthog_api_key)
+            }
+        }
+    except Exception as e:
+        logger.error(f"Error en health check: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
 
 
 @router.post("/validate-file")
@@ -173,30 +188,50 @@ async def transcribe_audio(
     """
     Endpoint simplificado para transcribir audio con AssemblyAI.
     """
-    # Validar entradas
-    _validate_inputs(file, email)
+    logger.info(f"Iniciando transcripción para {email}, archivo: {file.filename}, tamaño: {file.size} bytes")
     
-    # Tracking inicial
-    posthog = request.app.state.posthog
-    _track_form_submit(posthog, email, file.filename, file.size)
+    try:
+        # Validar entradas
+        _validate_inputs(file, email)
+        logger.info("Validación de entradas exitosa")
+        
+        # Tracking inicial
+        posthog = request.app.state.posthog
+        if posthog:
+            _track_form_submit(posthog, email, file.filename, file.size)
+            logger.info("Tracking inicial enviado a PostHog")
+        else:
+            logger.warning("PostHog no disponible, saltando tracking")
+    except Exception as e:
+        logger.error(f"Error en validación inicial: {str(e)}", exc_info=True)
+        raise
     
     temp_file_path = None
     try:
         # Guardar archivo temporalmente
+        logger.info("Guardando archivo temporalmente...")
         temp_file_path = await _save_temp_file(file)
+        logger.info(f"Archivo guardado en: {temp_file_path}")
         
         # Procesar pipeline completo
+        logger.info("Iniciando pipeline de procesamiento...")
         result = _process_audio_pipeline(temp_file_path, email, file.filename)
+        logger.info("Pipeline completado exitosamente")
         
         # Tracking final
-        _track_acta_generated(
-            posthog, email, file.filename, file.size,
-            result['duration_minutes'], result['total_cost'],
-            result['cost_breakdown'], result['openai_usage'],
-            result['assemblyai_usage'], result['email_sent']
-        )
+        if posthog:
+            _track_acta_generated(
+                posthog, email, file.filename, file.size,
+                result['duration_minutes'], result['total_cost'],
+                result['cost_breakdown'], result['openai_usage'],
+                result['assemblyai_usage'], result['email_sent']
+            )
+            logger.info("Tracking final enviado a PostHog")
+        else:
+            logger.warning("PostHog no disponible, saltando tracking final")
         
         # Respuesta simplificada
+        logger.info("Preparando respuesta exitosa")
         return {
             "status": "success",
             "filename": file.filename,
@@ -213,7 +248,10 @@ async def transcribe_audio(
         }
         
     except Exception as e:
+        logger.error(f"Error procesando audio: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error procesando audio: {str(e)}")
     finally:
         # Limpiar archivo temporal
+        logger.info("Limpiando archivo temporal...")
         _cleanup_temp_file(temp_file_path)
+        logger.info("Proceso completado")

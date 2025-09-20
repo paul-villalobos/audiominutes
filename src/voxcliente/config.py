@@ -1,8 +1,11 @@
 """Configuration settings for VoxCliente."""
 
+import logging
 from typing import Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings
+
+logger = logging.getLogger(__name__)
 
 
 class Settings(BaseSettings):
@@ -46,4 +49,14 @@ class Settings(BaseSettings):
 
 
 # Global settings instance
-settings = Settings()
+try:
+    settings = Settings()
+    logger.info("Configuración cargada exitosamente")
+    logger.info(f"Variables de entorno detectadas:")
+    logger.info(f"- ASSEMBLYAI_API_KEY: {'✓' if settings.assemblyai_api_key else '✗'}")
+    logger.info(f"- OPENAI_API_KEY: {'✓' if settings.openai_api_key else '✗'}")
+    logger.info(f"- RESEND_API_KEY: {'✓' if settings.resend_api_key else '✗'}")
+    logger.info(f"- POSTHOG_API_KEY: {'✓' if settings.posthog_api_key else '✗'}")
+except Exception as e:
+    logger.error(f"Error cargando configuración: {str(e)}", exc_info=True)
+    raise
