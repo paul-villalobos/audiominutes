@@ -22,7 +22,7 @@ class ResendEmailService:
     def __init__(self):
         """Inicializar cliente de Resend."""
         resend.api_key = settings.resend_api_key
-        self.template_path = Path(__file__).parent / "templates" / "email_template.html"
+        self.template_path = Path(__file__).parent.parent / "templates" / "email_template.html"
     
     def send_acta_email(self, email: str, acta_data: Dict[str, Any], filename: str, transcript: str = None) -> bool:
         """
