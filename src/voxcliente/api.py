@@ -14,6 +14,114 @@ from voxcliente.services import assemblyai_service, openai_service, resend_email
 router = APIRouter()
 
 
+def _validate_inputs(file: UploadFile, email: str) -> None:
+    """Validar email y archivo de entrada."""
+    # Validar email
+    is_email_valid, email_error = validate_email(email)
+    if not is_email_valid:
+        raise HTTPException(status_code=400, detail=email_error)
+    
+    # Validar archivo
+    is_file_valid, file_error = validate_audio_file(file.filename, file.size)
+    if not is_file_valid:
+        raise HTTPException(status_code=400, detail=file_error)
+
+
+def _track_form_submit(posthog, email: str, filename: str, file_size: int) -> None:
+    """Tracking inicial del formulario."""
+    posthog.capture(
+        distinct_id=email,
+        event='form_submit',
+        properties={
+            'filename': filename,
+            'file_size_mb': round(file_size / 1024 / 1024, 2),
+            'timestamp': datetime.now().isoformat()
+        }
+    )
+
+
+def _track_acta_generated(posthog, email: str, filename: str, file_size: int, 
+                         duration_minutes: float, total_cost: float, 
+                         cost_breakdown: dict, openai_usage: dict, 
+                         assemblyai_usage: dict, email_sent: bool) -> None:
+    """Tracking final de acta generada."""
+    posthog.capture(
+        distinct_id=email,
+        event='acta_generated',
+        properties={
+            'filename': filename,
+            'duration_minutes': duration_minutes,
+            'file_size_mb': round(file_size / 1024 / 1024, 2),
+            'cost_usd': total_cost,
+            'cost_breakdown': cost_breakdown,
+            'openai_usage': openai_usage,
+            'assemblyai_usage': assemblyai_usage,
+            'email_sent': email_sent,
+            'timestamp': datetime.now().isoformat()
+        }
+    )
+
+
+async def _save_temp_file(file: UploadFile) -> str:
+    """Guardar archivo temporalmente."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
+        content = await file.read()
+        temp_file.write(content)
+        return temp_file.name
+
+
+def _cleanup_temp_file(file_path: str) -> None:
+    """Limpiar archivo temporal."""
+    if file_path:
+        try:
+            os.unlink(file_path)
+        except:
+            pass
+
+
+def _process_audio_pipeline(temp_file_path: str, email: str, filename: str) -> dict:
+    """Procesar pipeline completo de audio a acta."""
+    # Transcribir archivo
+    transcription_result = assemblyai_service.transcribe_file(temp_file_path)
+    if not transcription_result:
+        raise HTTPException(status_code=500, detail="Error en la transcripción")
+    
+    transcript = transcription_result['transcript']
+    assemblyai_cost = transcription_result['assemblyai_cost']['cost_usd']
+    duration_minutes = transcription_result['assemblyai_cost']['duration_minutes']
+    
+    # Generar acta profesional
+    acta_result = openai_service.generate_acta(transcript)
+    if not acta_result:
+        raise HTTPException(status_code=500, detail="Error generando acta")
+    
+    # Extraer acta y costos
+    acta = {k: v for k, v in acta_result.items() if k not in ['openai_usage', 'openai_cost']}
+    openai_cost = acta_result['openai_cost']['total_cost_usd']
+    
+    # Enviar email
+    email_sent = resend_email_service.send_acta_email(email, acta, filename, transcript)
+    
+    # Calcular costos totales
+    email_cost = 0.0004  # Resend cost
+    total_cost = round(assemblyai_cost + openai_cost + email_cost, 6)
+    
+    return {
+        'transcript': transcript,
+        'acta': acta,
+        'email_sent': email_sent,
+        'duration_minutes': duration_minutes,
+        'total_cost': total_cost,
+        'cost_breakdown': {
+            'assemblyai_cost_usd': assemblyai_cost,
+            'openai_cost_usd': openai_cost,
+            'email_cost_usd': email_cost
+        },
+        'openai_usage': acta_result['openai_usage'],
+        'assemblyai_usage': transcription_result['assemblyai_usage']
+    }
+
+
 @router.get("/health")
 async def health_check():
     """Simple health check endpoint."""
@@ -63,114 +171,49 @@ async def transcribe_audio(
     email: str = Form(...)
 ):
     """
-    Endpoint simple para transcribir audio con AssemblyAI.
+    Endpoint simplificado para transcribir audio con AssemblyAI.
     """
-    # Validar email
-    is_email_valid, email_error = validate_email(email)
-    if not is_email_valid:
-        raise HTTPException(status_code=400, detail=email_error)
+    # Validar entradas
+    _validate_inputs(file, email)
     
-    # Validar archivo
-    is_file_valid, file_error = validate_audio_file(file.filename, file.size)
-    if not is_file_valid:
-        raise HTTPException(status_code=400, detail=file_error)
-    
-    # Tracking al inicio - form_submit
+    # Tracking inicial
     posthog = request.app.state.posthog
-    posthog.capture(
-        distinct_id=email,
-        event='form_submit',
-        properties={
-            'filename': file.filename,
-            'file_size_mb': round(file.size / 1024 / 1024, 2),
-            'timestamp': datetime.now().isoformat()
-        }
-    )
+    _track_form_submit(posthog, email, file.filename, file.size)
     
+    temp_file_path = None
     try:
         # Guardar archivo temporalmente
-        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
-            content = await file.read()
-            temp_file.write(content)
-            temp_file_path = temp_file.name
+        temp_file_path = await _save_temp_file(file)
         
-        # Transcribir archivo directamente (AssemblyAI maneja el upload internamente)
-        transcription_result = assemblyai_service.transcribe_file(temp_file_path)
-        if not transcription_result:
-            raise HTTPException(status_code=500, detail="Error en la transcripción")
+        # Procesar pipeline completo
+        result = _process_audio_pipeline(temp_file_path, email, file.filename)
         
-        transcript = transcription_result['transcript']
-        assemblyai_cost = transcription_result['assemblyai_cost']['cost_usd']
-        duration_minutes = transcription_result['assemblyai_cost']['duration_minutes']
-        
-        # Generar acta profesional usando OpenAI
-        acta_result = openai_service.generate_acta(transcript)
-        if not acta_result:
-            raise HTTPException(status_code=500, detail="Error generando acta")
-        
-        # Extraer acta y costos de OpenAI
-        acta = {k: v for k, v in acta_result.items() if k not in ['openai_usage', 'openai_cost']}
-        openai_cost = acta_result['openai_cost']['total_cost_usd']
-        
-        # Enviar acta por email con transcripción adjunta
-        email_sent = resend_email_service.send_acta_email(email, acta, file.filename, transcript)
-        
-        # Calcular costo total real
-        # AssemblyAI: costo real de la API
-        # OpenAI: costo real de la API
-        # Email: $0.0004 por email (Resend)
-        email_cost = 0.0004
-        total_cost = round(assemblyai_cost + openai_cost + email_cost, 6)
-        
-        # Tracking al final - acta_generated
-        posthog.capture(
-            distinct_id=email,
-            event='acta_generated',
-            properties={
-                'filename': file.filename,
-                'duration_minutes': duration_minutes,
-                'file_size_mb': round(file.size / 1024 / 1024, 2),
-                'cost_usd': total_cost,
-                'cost_breakdown': {
-                    'assemblyai_cost_usd': assemblyai_cost,
-                    'openai_cost_usd': openai_cost,
-                    'email_cost_usd': email_cost
-                },
-                'openai_usage': acta_result['openai_usage'],
-                'assemblyai_usage': transcription_result['assemblyai_usage'],
-                'email_sent': email_sent,
-                'timestamp': datetime.now().isoformat()
-            }
+        # Tracking final
+        _track_acta_generated(
+            posthog, email, file.filename, file.size,
+            result['duration_minutes'], result['total_cost'],
+            result['cost_breakdown'], result['openai_usage'],
+            result['assemblyai_usage'], result['email_sent']
         )
         
-        # Limpiar archivo temporal
-        os.unlink(temp_file_path)
-        
+        # Respuesta simplificada
         return {
             "status": "success",
             "filename": file.filename,
             "email": email,
-            "transcript": transcript,
-            "acta": acta,
-            "email_sent": email_sent,
-            "duration_minutes": duration_minutes,
-            "cost_usd": total_cost,
-            "cost_breakdown": {
-                "assemblyai_cost_usd": assemblyai_cost,
-                "openai_cost_usd": openai_cost,
-                "email_cost_usd": email_cost
-            },
-            "openai_usage": acta_result['openai_usage'],
-            "assemblyai_usage": transcription_result['assemblyai_usage'],
-            "message": "Transcripción completada y acta enviada por email" if email_sent else "Transcripción completada, pero error enviando email"
+            "transcript": result['transcript'],
+            "acta": result['acta'],
+            "email_sent": result['email_sent'],
+            "duration_minutes": result['duration_minutes'],
+            "cost_usd": result['total_cost'],
+            "cost_breakdown": result['cost_breakdown'],
+            "openai_usage": result['openai_usage'],
+            "assemblyai_usage": result['assemblyai_usage'],
+            "message": "Transcripción completada y acta enviada por email" if result['email_sent'] else "Transcripción completada, pero error enviando email"
         }
         
     except Exception as e:
-        # Limpiar archivo temporal en caso de error
-        if 'temp_file_path' in locals():
-            try:
-                os.unlink(temp_file_path)
-            except:
-                pass
-        
         raise HTTPException(status_code=500, detail=f"Error procesando audio: {str(e)}")
+    finally:
+        # Limpiar archivo temporal
+        _cleanup_temp_file(temp_file_path)

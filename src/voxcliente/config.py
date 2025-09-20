@@ -11,10 +11,9 @@ class Settings(BaseSettings):
     # App settings (fixed for MVP)
     app_name: str = "VoxCliente"
     app_version: str = "0.1.0"
-    debug: bool = True  # Enable docs for development
+    debug: bool = False  # Disabled by default for security
     
     # Essential API keys only
-    database_url: str = Field(env="DATABASE_URL")
     assemblyai_api_key: str = Field(env="ASSEMBLYAI_API_KEY")
     openai_api_key: str = Field(env="OPENAI_API_KEY")
     resend_api_key: str = Field(env="RESEND_API_KEY")
@@ -23,16 +22,10 @@ class Settings(BaseSettings):
     
     
     # Fixed settings for MVP (no env vars needed)
-    max_file_size_mb: int = 100
-    allowed_audio_formats: str = "wav,mp3,m4a"
+    max_file_size_mb: int = 500
     from_email: str = "actas@actas.voxcliente.com"
     from_name: str = "VoxCliente"
     allowed_origins: str = "http://localhost:3000,http://localhost:8080"
-    
-    @property
-    def allowed_audio_formats_list(self) -> list[str]:
-        """Convert comma-separated string to list."""
-        return [fmt.strip() for fmt in self.allowed_audio_formats.split(",")]
     
     @property
     def allowed_origins_list(self) -> list[str]:
@@ -47,7 +40,8 @@ class Settings(BaseSettings):
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
-        "case_sensitive": False
+        "case_sensitive": False,
+        "extra": "ignore"  # Ignorar variables de entorno extra
     }
 
 

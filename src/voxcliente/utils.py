@@ -2,6 +2,7 @@
 
 import re
 from typing import Optional
+from voxcliente.config import settings
 
 
 def validate_audio_file(filename: str, file_size_bytes: int) -> tuple[bool, Optional[str]]:
@@ -11,21 +12,13 @@ def validate_audio_file(filename: str, file_size_bytes: int) -> tuple[bool, Opti
     Returns:
         (is_valid, error_message)
     """
-    # Validar extensión
     if not filename:
         return False, "Nombre de archivo requerido"
     
-    # Por ahora no validaré extensión
-    #extension = filename.lower().split('.')[-1]
-    #allowed_extensions = ['wav', 'mp3', 'm4a']
-    
-    #if extension not in allowed_extensions:
-        #return False, f"Formato no soportado. Use: {', '.join(allowed_extensions)}"
-    
-    # Validar tamaño (100MB máximo)
-    max_size_bytes = 500 * 1024 * 1024  # 500MB
+    # Validar tamaño usando configuración centralizada
+    max_size_bytes = settings.max_file_size_mb * 1024 * 1024
     if file_size_bytes > max_size_bytes:
-        return False, f"Archivo muy grande. Máximo: 500MB"
+        return False, f"Archivo muy grande. Máximo: {settings.max_file_size_mb}MB"
     
     return True, None
 
