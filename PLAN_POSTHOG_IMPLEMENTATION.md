@@ -2,50 +2,18 @@
 
 ## 🎯 Objetivo
 
-Implementar un sistema completo de métricas de **Activación**, **Retención**, **Referral** y **Costos** usando **solo PostHog**, siguiendo la filosofía de **simplicidad primero**.
+Implementar un sistema completo de métricas de **Conversión**, **Retención**, **Referral** y **Costos** usando **solo PostHog**, siguiendo la filosofía de **simplicidad primero**.
 
 ## 📋 Resumen Ejecutivo
 
-### Filosofía: Simplicidad Primero
-
-- ✅ **1 línea de código** para tracking básico
-- ✅ **Dashboard automático** sin desarrollo
-- ✅ **Métricas automáticas** sin configuración
-- ✅ **Cero mantenimiento** del sistema de métricas
-
 ### Indicadores a Implementar
 
-- **🔹 Activación**: Número de actas generadas, % de usuarios que llegan al aha moment
+- **🔹 Conversión**: Número de actas generadas, % de éxito en creación de actas
 - **🔄 Retención**: 2nd Acta Rate, APU/week, Retention Curve automática
 - **📤 Referral**: % de actas compartidas, Invitation Rate
 - **💰 Costos**: Costo por acta, costo por usuario/mes, desglose por proveedor
 
 ---
-
-## 🏗️ Arquitectura Simplificada
-
-### **Solo PostHog (Sin Base de Datos de Métricas)**
-
-```python
-# Instalación súper simple
-pip install posthog
-
-# Configuración mínima
-from posthog import Posthog
-posthog = Posthog('your-api-key')
-
-# Tracking en 1 línea
-posthog.capture(email, 'acta_generated', {'cost_usd': total_cost})
-```
-
-### **Ventajas de Solo PostHog**
-
-- ✅ **Setup**: 5 minutos
-- ✅ **Mantenimiento**: Cero
-- ✅ **Dashboard**: Automático
-- ✅ **Métricas**: Automáticas
-- ✅ **Costo**: Gratis hasta 1M eventos/mes
-- ✅ **Simplicidad**: Solo 6 eventos en lugar de 12
 
 ---
 
@@ -55,20 +23,13 @@ posthog.capture(email, 'acta_generated', {'cost_usd': total_cost})
 
 | **Sección**    | **Eventos**                                          | **Total**     |
 | -------------- | ---------------------------------------------------- | ------------- |
-| **ACTIVACIÓN** | `form_submit`, `acta_generated`, `acta_downloaded`   | 3             |
+| **CONVERSIÓN** | `form_submit`, `acta_generated`, `acta_downloaded`   | 3             |
 | **RETENCIÓN**  | _(Consolidado en `acta_generated`)_                  | 0             |
 | **REFERRAL**   | `acta_shared`, `referral_sent`, `referral_converted` | 3             |
 | **COSTOS**     | _(Consolidado en `acta_generated`)_                  | 0             |
 | **TOTAL**      |                                                      | **6 eventos** |
 
-### **Ventajas de la Consolidación**
-
-- ✅ **Simplicidad**: 6 eventos en lugar de 12
-- ✅ **PostHog automático**: Todos los indicadores calculables
-- ✅ **Cero mantenimiento**: Sin lógica adicional
-- ✅ **Dashboard limpio**: Información consolidada
-
-### 🔹 ACTIVACIÓN (Aha Moment)
+### 🔹 CONVERSIÓN (Éxito en Creación de Actas)
 
 #### **Evento: `form_submit`**
 
@@ -81,36 +42,11 @@ posthog.capture(email, 'form_submit', {
 })
 ```
 
-#### **Evento: `acta_generated`**
-
-```python
-# Al final del endpoint /transcribe (después de enviar email)
-posthog.capture(email, 'acta_generated', {
-    'filename': file.filename,
-    'duration_minutes': duration_minutes,
-    'file_size_mb': file.size / 1024 / 1024,
-    'cost_usd': total_cost,
-    'timestamp': datetime.now().isoformat()
-})
-```
-
-#### **Evento: `acta_downloaded`**
-
-```python
-# En email tracking (pixel o link)
-posthog.capture(email, 'acta_downloaded', {
-    'filename': filename,
-    'download_timestamp': datetime.now().isoformat()
-})
-```
-
-### 🔄 RETENCIÓN (Repetición del Aha)
-
 #### **Evento: `acta_generated` (Consolidado)**
 
 ```python
 # Al final del endpoint /transcribe (después de enviar email)
-# PostHog calcula automáticamente todos los indicadores de retención
+# Incluye conversión, retención y costos en un solo evento
 posthog.capture(email, 'acta_generated', {
     'filename': file.filename,
     'duration_minutes': duration_minutes,
@@ -129,6 +65,24 @@ posthog.capture(email, 'acta_generated', {
     'timestamp': datetime.now().isoformat()
 })
 ```
+
+#### **Indicadores de Conversión Calculables en PostHog**
+
+- ✅ **Tasa de éxito de creación**: `count(acta_generated) / count(form_submit)`
+- ✅ **Funnel de conversión**: `form_submit` → `acta_generated` → `acta_downloaded`
+- ✅ **Tiempo promedio de procesamiento**: `average(acta_generated.timestamp - form_submit.timestamp)`
+
+#### **Evento: `acta_downloaded`**
+
+```python
+# En email tracking (pixel o link)
+posthog.capture(email, 'acta_downloaded', {
+    'filename': filename,
+    'download_timestamp': datetime.now().isoformat()
+})
+```
+
+### 🔄 RETENCIÓN (Repetición del Aha)
 
 #### **Indicadores de Retención Calculables Automáticamente en PostHog**
 
@@ -174,30 +128,6 @@ posthog.capture(email, 'referral_converted', {
 ```
 
 ### 💰 COSTOS (Modelo de Pricing)
-
-#### **Evento: `acta_generated` (Consolidado)**
-
-```python
-# Al final del endpoint /transcribe (después de enviar email)
-# Incluye todos los costos en un solo evento
-posthog.capture(email, 'acta_generated', {
-    'filename': file.filename,
-    'duration_minutes': duration_minutes,
-    'file_size_mb': file.size / 1024 / 1024,
-    'cost_usd': total_cost,
-    'cost_breakdown': {
-        'transcription': duration_minutes * 0.006,
-        'llm': (input_tokens * 0.00015 + output_tokens * 0.0006) / 1000,
-        'email': 0.0004
-    },
-    'provider_details': {
-        'transcription_provider': 'AssemblyAI',
-        'llm_model': 'GPT-4.1-mini',
-        'email_provider': 'Resend'
-    },
-    'timestamp': datetime.now().isoformat()
-})
-```
 
 #### **Indicadores de Costo Calculables en PostHog**
 
@@ -263,9 +193,9 @@ posthog.capture(email, 'acta_generated', {
 - ✅ Tracking básico funcionando
 - ✅ Dashboard automático visible
 
-### **Fase 2: Métricas de Activación (Día 2)**
+### **Fase 2: Métricas de Conversión (Día 2)**
 
-#### **Objetivo**: Implementar tracking completo de activación
+#### **Objetivo**: Implementar tracking completo de conversión
 
 #### **Tareas**:
 
@@ -285,15 +215,15 @@ posthog.capture(email, 'acta_generated', {
        return Response(content="", media_type="image/png")
    ```
 
-2. **Configurar funnel de activación**
+2. **Configurar funnel de conversión**
    - En PostHog: Events → Funnels
    - Crear funnel: `form_submit` → `acta_generated` → `acta_downloaded`
 
 #### **Entregables**:
 
 - ✅ Tracking de descarga funcionando
-- ✅ Funnel de activación configurado
-- ✅ Métricas de activación visibles
+- ✅ Funnel de conversión configurado
+- ✅ Métricas de conversión visibles
 
 ### **Fase 3: Métricas de Retención (Día 3)**
 
@@ -492,11 +422,11 @@ posthog.capture(email, 'acta_generated', {
    - Ir a PostHog → Dashboards → New Dashboard
    - Nombre: "VoxCliente Analytics Dashboard"
 
-   **Paso 2: Agregar Gráficos de Activación**
+   **Paso 2: Agregar Gráficos de Conversión**
 
-   - Agregar Insight: Funnel de activación (form_submit → acta_generated → acta_downloaded)
+   - Agregar Insight: Funnel de conversión (form_submit → acta_generated → acta_downloaded)
    - Agregar Insight: Trend de actas generadas por día
-   - Agregar Insight: Tasa de activación por semana
+   - Agregar Insight: Tasa de éxito de creación por semana
 
    **Paso 3: Agregar Gráficos de Retención**
 
@@ -558,7 +488,7 @@ posthog.capture(email, 'acta_generated', {
        return {
            "actas_this_week": posthog.get_events_count("acta_generated", "7d"),
            "total_users": posthog.get_unique_users("acta_generated", "30d"),
-           "activation_rate": posthog.get_funnel_conversion("form_submit", "acta_generated"),
+           "conversion_rate": posthog.get_funnel_conversion("form_submit", "acta_generated"),
            "retention_rate": posthog.get_retention("acta_generated", "7d"),
            "avg_cost_per_acta": posthog.get_average("acta_generated", "cost_usd"),
            "total_cost_week": posthog.get_sum("acta_generated", "cost_usd", "7d"),
@@ -587,7 +517,7 @@ posthog.capture(email, 'acta_generated', {
 ├── 📄 Actas
 │   ├── Generadas esta semana: 45
 │   ├── Promedio por usuario: 1.8
-│   └── Tasa de activación: 78%
+│   └── Tasa de éxito de creación: 78%
 ├── 🔄 Retención
 │   ├── Día 1: 95%
 │   ├── Día 7: 35%
@@ -606,7 +536,7 @@ posthog.capture(email, 'acta_generated', {
 
 - ✅ **Trend de actas generadas** (por día/semana)
 - ✅ **Cohort analysis** (retención por semana)
-- ✅ **Funnel de activación** (form_submit → acta_generated → acta_downloaded)
+- ✅ **Funnel de conversión** (form_submit → acta_generated → acta_downloaded)
 - ✅ **Distribución de costos** (histograma automático de cost_usd)
 - ✅ **Tendencia de costos** (promedio por día/semana)
 - ✅ **Desglose de costos** (análisis automático de cost_breakdown)
@@ -618,7 +548,7 @@ posthog.capture(email, 'acta_generated', {
 
 ### **KPIs Principales**
 
-- **Activación**: >70% de usuarios que envían formulario generan acta
+- **Conversión**: >70% de usuarios que envían formulario generan acta exitosamente
 - **Retención**: >30% de usuarios generan segunda acta en 7 días
 - **Referral**: >15% de usuarios comparten actas en primeros 7 días
 - **Costos**: <$0.30 por acta generada
