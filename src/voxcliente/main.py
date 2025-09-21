@@ -92,7 +92,7 @@ def create_app() -> FastAPI:
     # Add trusted host middleware for security
     app.add_middleware(
         TrustedHostMiddleware,
-        allowed_hosts=["localhost", "127.0.0.1", "*.voxcliente.com"]
+        allowed_hosts=["localhost", "127.0.0.1", "voxcliente.com"]
     )
     
     # Include routers
