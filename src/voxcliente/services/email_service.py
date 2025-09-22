@@ -73,7 +73,8 @@ class ResendEmailService:
                 "to": [email],
                 "subject": f"Acta de Reunión - {filename}",
                 "html": html_content,
-                "attachments": attachments
+                "attachments": attachments,
+                "reply_to": settings.reply_to_email
             }
             
             # Enviar email
@@ -214,6 +215,17 @@ class ResendEmailService:
                 # Procesar el texto del acta (convertir markdown básico a formato Word)
                 self._add_formatted_text(doc, acta_completa)
             
+            # Agregar branding discreto al final del documento
+            doc.add_paragraph('')  # Línea en blanco
+            doc.add_paragraph('')  # Línea en blanco
+            
+            # Branding discreto y profesional
+            branding_paragraph = doc.add_paragraph()
+            branding_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            branding_run = branding_paragraph.add_run('Generado por VoxCliente – Actas profesionales al instante con IA')
+            branding_run.font.size = Inches(0.1)  # Tamaño pequeño
+            branding_run.font.color.rgb = None  # Color gris por defecto
+            
             # Crear archivo temporal
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.docx')
             temp_path = temp_file.name
@@ -296,6 +308,17 @@ class ResendEmailService:
                     doc.add_paragraph(line.strip())
                 else:
                     doc.add_paragraph('')  # Mantener saltos de línea
+            
+            # Agregar branding discreto al final del documento de transcripción
+            doc.add_paragraph('')  # Línea en blanco
+            doc.add_paragraph('')  # Línea en blanco
+            
+            # Branding discreto y profesional
+            branding_paragraph = doc.add_paragraph()
+            branding_paragraph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            branding_run = branding_paragraph.add_run('Generado por VoxCliente – Actas profesionales al instante con IA')
+            branding_run.font.size = Inches(0.1)  # Tamaño pequeño
+            branding_run.font.color.rgb = None  # Color gris por defecto
             
             # Crear archivo temporal
             temp_file = tempfile.NamedTemporaryFile(delete=False, suffix='.docx')

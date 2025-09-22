@@ -28,6 +28,7 @@ class Settings(BaseSettings):
     max_file_size_mb: int = 500
     from_email: str = "actas@actas.voxcliente.com"
     from_name: str = "VoxCliente"
+    reply_to_email: str = "hola@voxcliente.com"
     allowed_origins: str = "http://localhost:3000,http://localhost:8080"
     
     @property
