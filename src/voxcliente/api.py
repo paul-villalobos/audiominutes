@@ -2,6 +2,7 @@
 
 import logging
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
+from fastapi.responses import FileResponse
 from typing import Optional
 import tempfile
 import os
@@ -10,6 +11,7 @@ from datetime import datetime
 from voxcliente.config import settings
 from voxcliente.utils import validate_audio_file, validate_email, sanitize_filename
 from voxcliente.services import assemblyai_service, openai_service, resend_email_service
+from voxcliente.services.file_manager import file_manager
 
 logger = logging.getLogger(__name__)
 
@@ -102,6 +104,23 @@ def _process_audio_pipeline(temp_file_path: str, email: str, filename: str) -> d
     acta = {k: v for k, v in acta_result.items() if k not in ['openai_usage', 'openai_cost']}
     openai_cost = acta_result['openai_cost']['total_cost_usd']
     
+    # Generar archivos para descarga
+    try:
+        download_files = resend_email_service.generate_download_files(acta, transcript, filename)
+        logger.info(f"Archivos de descarga generados: {download_files}")
+        
+        # Limpiar archivos antiguos después de generar nuevos
+        try:
+            removed_count = file_manager.cleanup_old_files()
+            if removed_count > 0:
+                logger.info(f"Limpieza automática: {removed_count} archivos antiguos eliminados")
+        except Exception as cleanup_error:
+            logger.warning(f"Error en limpieza automática: {cleanup_error}")
+            
+    except Exception as e:
+        logger.error(f"Error generando archivos de descarga: {e}")
+        download_files = None
+    
     # Enviar email
     email_sent = resend_email_service.send_acta_email(email, acta, filename, transcript)
     
@@ -121,7 +140,8 @@ def _process_audio_pipeline(temp_file_path: str, email: str, filename: str) -> d
             'email_cost_usd': email_cost
         },
         'openai_usage': acta_result['openai_usage'],
-        'assemblyai_usage': transcription_result['assemblyai_usage']
+        'assemblyai_usage': transcription_result['assemblyai_usage'],
+        'download_files': download_files
     }
 
 
@@ -145,6 +165,111 @@ async def health_check():
     except Exception as e:
         logger.error(f"Error en health check: {str(e)}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+
+
+@router.get("/download/{file_type}/{file_id}")
+async def download_file(file_type: str, file_id: str):
+    """
+    Descargar archivo Word generado.
+    
+    Args:
+        file_type: Tipo de archivo ('acta' o 'transcript')
+        file_id: ID único del archivo
+        
+    Returns:
+        Archivo Word para descarga
+    """
+    logger.info(f"Solicitud de descarga: {file_type}/{file_id}")
+    
+    try:
+        # Validar tipo de archivo
+        if file_type not in ["acta", "transcript"]:
+            raise HTTPException(status_code=400, detail="Tipo de archivo no válido. Use 'acta' o 'transcript'")
+        
+        # Obtener información del archivo
+        file_info = file_manager.get_file_info(file_id)
+        if not file_info:
+            raise HTTPException(status_code=404, detail="Archivo no encontrado o expirado")
+        
+        # Verificar que el tipo coincida
+        if file_info["file_type"] != file_type:
+            raise HTTPException(status_code=400, detail="Tipo de archivo no coincide con el ID")
+        
+        # Obtener ruta del archivo
+        file_path = file_manager.get_file_path(file_id)
+        if not file_path:
+            raise HTTPException(status_code=404, detail="Archivo no encontrado en disco")
+        
+        # Generar nombre de archivo para descarga
+        original_filename = file_info["original_filename"]
+        clean_filename = original_filename.replace('.', '_')
+        
+        if file_type == "acta":
+            download_filename = f"Acta_Reunion_{clean_filename}.docx"
+        else:
+            download_filename = f"Transcripcion_{clean_filename}.docx"
+        
+        logger.info(f"Sirviendo archivo: {file_path} como {download_filename}")
+        
+        # Retornar archivo para descarga
+        return FileResponse(
+            path=str(file_path),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            filename=download_filename,
+            headers={
+                "Content-Disposition": f"attachment; filename=\"{download_filename}\"",
+                "Cache-Control": "no-cache"
+            }
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error sirviendo archivo {file_type}/{file_id}: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
+
+
+@router.post("/cleanup-files")
+async def cleanup_files():
+    """
+    Limpiar archivos temporales antiguos.
+    Endpoint para mantenimiento del sistema.
+    """
+    logger.info("Iniciando limpieza de archivos temporales")
+    
+    try:
+        removed_count = file_manager.cleanup_old_files()
+        stats = file_manager.get_stats()
+        
+        logger.info(f"Limpieza completada: {removed_count} archivos eliminados")
+        
+        return {
+            "status": "success",
+            "removed_files": removed_count,
+            "current_stats": stats,
+            "message": f"Limpieza completada. {removed_count} archivos eliminados."
+        }
+        
+    except Exception as e:
+        logger.error(f"Error en limpieza de archivos: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error en limpieza: {str(e)}")
+
+
+@router.get("/file-stats")
+async def get_file_stats():
+    """
+    Obtener estadísticas del sistema de archivos temporales.
+    """
+    try:
+        stats = file_manager.get_stats()
+        return {
+            "status": "success",
+            "stats": stats
+        }
+        
+    except Exception as e:
+        logger.error(f"Error obteniendo estadísticas: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error obteniendo estadísticas: {str(e)}")
 
 
 @router.post("/validate-file")
@@ -232,6 +357,17 @@ async def transcribe_audio(
         
         # Respuesta simplificada
         logger.info("Preparando respuesta exitosa")
+        
+        # Preparar URLs de descarga si están disponibles
+        download_urls = None
+        if result['download_files']:
+            download_urls = {
+                'acta_url': f"/api/v1/download/acta/{result['download_files']['acta_id']}",
+                'transcript_url': f"/api/v1/download/transcript/{result['download_files']['transcript_id']}",
+                'acta_filename': f"Acta_Reunion_{file.filename}.docx",
+                'transcript_filename': f"Transcripcion_{file.filename}.docx"
+            }
+        
         return {
             "status": "success",
             "filename": file.filename,
@@ -244,6 +380,7 @@ async def transcribe_audio(
             "cost_breakdown": result['cost_breakdown'],
             "openai_usage": result['openai_usage'],
             "assemblyai_usage": result['assemblyai_usage'],
+            "download_files": download_urls,
             "message": "Transcripción completada y acta enviada por email" if result['email_sent'] else "Transcripción completada, pero error enviando email"
         }
         

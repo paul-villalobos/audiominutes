@@ -174,10 +174,36 @@ document.addEventListener("DOMContentLoaded", function () {
       const responseData = await response.json().catch(() => ({}));
       const fileName = audioFileInput.files[0]?.name || "tu archivo";
 
-      showNotification(
-        `¡Perfecto! Hemos procesado "${fileName}" exitosamente. Las actas profesionales llegarán a ${email} en los próximos minutos.`,
-        "success"
-      );
+      // Descargar archivos automáticamente si están disponibles
+      if (responseData.download_files) {
+        try {
+          await downloadFile(
+            responseData.download_files.acta_url,
+            responseData.download_files.acta_filename
+          );
+
+          await downloadFile(
+            responseData.download_files.transcript_url,
+            responseData.download_files.transcript_filename
+          );
+
+          showNotification(
+            `¡Perfecto! Hemos procesado "${fileName}" exitosamente. Los archivos Word se han descargado automáticamente y también llegarán por email a ${email}.`,
+            "success"
+          );
+        } catch (downloadError) {
+          console.error("Error descargando archivos:", downloadError);
+          showNotification(
+            `¡Perfecto! Hemos procesado "${fileName}" exitosamente. Las actas profesionales llegarán a ${email} en los próximos minutos.`,
+            "success"
+          );
+        }
+      } else {
+        showNotification(
+          `¡Perfecto! Hemos procesado "${fileName}" exitosamente. Las actas profesionales llegarán a ${email} en los próximos minutos.`,
+          "success"
+        );
+      }
 
       // Limpiar formulario con animación
       setTimeout(() => {
@@ -350,6 +376,45 @@ document.addEventListener("DOMContentLoaded", function () {
   // Initialize form validation
   validateForm();
 });
+
+// Función para descargar archivos automáticamente
+async function downloadFile(url, filename) {
+  try {
+    console.log(`Iniciando descarga: ${url} como ${filename}`);
+
+    const response = await fetch(url);
+
+    if (!response.ok) {
+      throw new Error(
+        `Error descargando archivo: ${response.status} ${response.statusText}`
+      );
+    }
+
+    const blob = await response.blob();
+
+    // Crear URL temporal para descarga
+    const downloadUrl = URL.createObjectURL(blob);
+
+    // Crear elemento de descarga temporal
+    const a = document.createElement("a");
+    a.href = downloadUrl;
+    a.download = filename;
+    a.style.display = "none";
+
+    // Agregar al DOM, hacer clic y remover
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+
+    // Limpiar URL temporal
+    URL.revokeObjectURL(downloadUrl);
+
+    console.log(`Descarga completada: ${filename}`);
+  } catch (error) {
+    console.error(`Error descargando ${filename}:`, error);
+    throw error;
+  }
+}
 
 // Función global para cerrar notificaciones
 function closeNotification(button) {

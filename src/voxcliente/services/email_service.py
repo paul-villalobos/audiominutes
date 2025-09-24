@@ -11,6 +11,7 @@ from docx import Document
 from docx.shared import Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 from voxcliente.config import settings
+from voxcliente.services.file_manager import file_manager
 
 # Constantes para tipos MIME
 WORD_MIME_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -333,6 +334,54 @@ class ResendEmailService:
         except Exception as e:
             print(f"Error generando documento de transcripción: {e}")
             return None
+
+    def generate_download_files(self, acta_data: Dict[str, Any], transcript: str, filename: str) -> Dict[str, str]:
+        """
+        Generar archivos Word para descarga y retornar IDs únicos.
+        
+        Args:
+            acta_data: Diccionario con resumen_ejecutivo y acta completa
+            transcript: Transcripción completa de Assembly
+            filename: Nombre del archivo original
+            
+        Returns:
+            Diccionario con IDs de archivos generados
+        """
+        try:
+            # Generar archivo Word del acta
+            acta_file_path = self._generate_word_document(acta_data, filename)
+            if not acta_file_path:
+                raise Exception("Error generando archivo Word del acta")
+            
+            # Guardar acta en sistema de archivos temporales
+            acta_id = file_manager.save_file(acta_file_path, "acta", filename)
+            
+            # Generar archivo Word de la transcripción
+            transcript_file_path = self._generate_transcript_document(transcript, filename)
+            if not transcript_file_path:
+                raise Exception("Error generando archivo Word de la transcripción")
+            
+            # Guardar transcripción en sistema de archivos temporales
+            transcript_id = file_manager.save_file(transcript_file_path, "transcript", filename)
+            
+            # Limpiar archivos temporales originales
+            self._cleanup_temp_files([acta_file_path, transcript_file_path])
+            
+            print(f"Archivos de descarga generados - Acta: {acta_id}, Transcript: {transcript_id}")
+            
+            return {
+                "acta_id": acta_id,
+                "transcript_id": transcript_id
+            }
+            
+        except Exception as e:
+            print(f"Error generando archivos de descarga: {e}")
+            # Limpiar archivos temporales en caso de error
+            if 'acta_file_path' in locals():
+                self._cleanup_temp_files([acta_file_path])
+            if 'transcript_file_path' in locals():
+                self._cleanup_temp_files([transcript_file_path])
+            raise
 
 
 # Instancia global del servicio
