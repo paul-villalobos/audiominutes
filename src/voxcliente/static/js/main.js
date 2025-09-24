@@ -127,7 +127,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <h3 class="text-lg font-semibold text-foreground mb-2">Procesando tu audio</h3>
         <p class="text-sm text-muted-foreground">Nuestra IA está transcribiendo y generando las actas...</p>
-        <p class="text-xs text-muted-foreground mt-2">⏱️ Esto puede tardar hasta 10 minutos dependiendo del tamaño del archivo</p>
+        <p class="text-xs text-muted-foreground mt-2">⏱️ Procesando con IA avanzada, por favor mantén esta ventana abierta</p>
         <div class="flex justify-center gap-1 mt-4">
           <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0ms"></div>
           <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 150ms"></div>
