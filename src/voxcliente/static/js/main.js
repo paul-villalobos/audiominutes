@@ -188,7 +188,7 @@ document.addEventListener("DOMContentLoaded", function () {
           );
 
           showNotification(
-            `¡Perfecto! Hemos procesado "${fileName}" exitosamente. Los archivos Word se han descargado automáticamente y también llegarán por email a ${email}.`,
+            `¡Listo! Tu acta profesional ya está descargada en tu dispositivo. Los archivos Word están listos para usar. También enviamos una copia por email (revisa spam si no la ves).`,
             "success"
           );
         } catch (downloadError) {
