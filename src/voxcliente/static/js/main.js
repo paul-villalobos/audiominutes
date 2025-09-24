@@ -127,6 +127,7 @@ document.addEventListener("DOMContentLoaded", function () {
         </div>
         <h3 class="text-lg font-semibold text-foreground mb-2">Procesando tu audio</h3>
         <p class="text-sm text-muted-foreground">Nuestra IA está transcribiendo y generando las actas...</p>
+        <p class="text-xs text-muted-foreground mt-2">⏱️ Esto puede tardar hasta 10 minutos dependiendo del tamaño del archivo</p>
         <div class="flex justify-center gap-1 mt-4">
           <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 0ms"></div>
           <div class="w-2 h-2 bg-primary rounded-full animate-bounce" style="animation-delay: 150ms"></div>
@@ -161,6 +162,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const response = await fetch("/api/v1/transcribe", {
         method: "POST",
         body: formData,
+        signal: AbortSignal.timeout(600000), // 10 minutos timeout
       });
 
       if (!response.ok) {
@@ -240,6 +242,12 @@ document.addEventListener("DOMContentLoaded", function () {
       ) {
         errorMessage =
           "Error de conexión. Verifica tu internet e intenta nuevamente.";
+      } else if (
+        error.message.includes("524") ||
+        error.message.includes("timeout")
+      ) {
+        errorMessage =
+          "El procesamiento tardó más de lo esperado. Tu archivo se está procesando en segundo plano. Revisa tu email en unos minutos.";
       } else {
         errorMessage = `Error al procesar el archivo: ${error.message}`;
       }
