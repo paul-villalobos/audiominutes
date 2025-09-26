@@ -7,9 +7,10 @@ from typing import Optional
 import tempfile
 import os
 from datetime import datetime
+from contextlib import asynccontextmanager
 
 from voxcliente.config import settings
-from voxcliente.utils import validate_audio_file, validate_email, sanitize_filename
+from voxcliente.utils import validate_audio_file, validate_email
 from voxcliente.services import assemblyai_service, openai_service, resend_email_service
 from voxcliente.services.file_manager import file_manager
 
@@ -19,17 +20,24 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-def _validate_inputs(file: UploadFile, email: str) -> None:
-    """Validar email y archivo de entrada."""
-    # Validar email
-    is_email_valid, email_error = validate_email(email)
-    if not is_email_valid:
-        raise HTTPException(status_code=400, detail=email_error)
-    
-    # Validar archivo
-    is_file_valid, file_error = validate_audio_file(file.filename, file.size)
-    if not is_file_valid:
-        raise HTTPException(status_code=400, detail=file_error)
+@asynccontextmanager
+async def temp_file_context(file: UploadFile):
+    """Context manager para manejo automático de archivos temporales."""
+    temp_path = None
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
+            content = await file.read()
+            temp_file.write(content)
+            temp_path = temp_file.name
+        yield temp_path
+    finally:
+        if temp_path:
+            try:
+                os.unlink(temp_path)
+            except:
+                pass
+
+
 
 
 def _track_form_submit(posthog, email: str, filename: str, file_size: int) -> None:
@@ -67,21 +75,6 @@ def _track_acta_generated(posthog, email: str, filename: str, file_size: int,
     )
 
 
-async def _save_temp_file(file: UploadFile) -> str:
-    """Guardar archivo temporalmente."""
-    with tempfile.NamedTemporaryFile(delete=False, suffix=f".{file.filename.split('.')[-1]}") as temp_file:
-        content = await file.read()
-        temp_file.write(content)
-        return temp_file.name
-
-
-def _cleanup_temp_file(file_path: str) -> None:
-    """Limpiar archivo temporal."""
-    if file_path:
-        try:
-            os.unlink(file_path)
-        except:
-            pass
 
 
 def _process_audio_pipeline(temp_file_path: str, email: str, filename: str) -> dict:
@@ -272,36 +265,6 @@ async def get_file_stats():
         raise HTTPException(status_code=500, detail=f"Error obteniendo estadísticas: {str(e)}")
 
 
-@router.post("/validate-file")
-async def validate_file(
-    file: UploadFile = File(...),
-    email: str = Form(...)
-):
-    """
-    Endpoint simple para validar archivo de audio y email.
-    Solo para testing - no procesa el archivo.
-    """
-    # Validar email
-    is_email_valid, email_error = validate_email(email)
-    if not is_email_valid:
-        raise HTTPException(status_code=400, detail=email_error)
-    
-    # Validar archivo
-    is_file_valid, file_error = validate_audio_file(file.filename, file.size)
-    if not is_file_valid:
-        raise HTTPException(status_code=400, detail=file_error)
-    
-    # Sanitizar nombre
-    sanitized_name = sanitize_filename(file.filename)
-    
-    return {
-        "status": "valid",
-        "filename": file.filename,
-        "sanitized_filename": sanitized_name,
-        "size_bytes": file.size,
-        "email": email,
-        "message": "Archivo y email válidos"
-    }
 
 
 @router.post("/transcribe")
@@ -316,8 +279,15 @@ async def transcribe_audio(
     logger.info(f"Iniciando transcripción para {email}, archivo: {file.filename}, tamaño: {file.size} bytes")
     
     try:
-        # Validar entradas
-        _validate_inputs(file, email)
+        # Validación inline de email y archivo
+        is_email_valid, email_error = validate_email(email)
+        if not is_email_valid:
+            raise HTTPException(status_code=400, detail=email_error)
+        
+        is_file_valid, file_error = validate_audio_file(file.filename, file.size)
+        if not is_file_valid:
+            raise HTTPException(status_code=400, detail=file_error)
+        
         logger.info("Validación de entradas exitosa")
         
         # Tracking inicial
@@ -331,12 +301,9 @@ async def transcribe_audio(
         logger.error(f"Error en validación inicial: {str(e)}", exc_info=True)
         raise
     
-    temp_file_path = None
-    try:
-        # Guardar archivo temporalmente
-        logger.info("Guardando archivo temporalmente...")
-        temp_file_path = await _save_temp_file(file)
-        logger.info(f"Archivo guardado en: {temp_file_path}")
+    # Procesar con context manager para manejo automático de archivos temporales
+    async with temp_file_context(file) as temp_file_path:
+        logger.info(f"Archivo temporal creado: {temp_file_path}")
         
         # Procesar pipeline completo
         logger.info("Iniciando pipeline de procesamiento...")
@@ -383,12 +350,3 @@ async def transcribe_audio(
             "download_files": download_urls,
             "message": "Transcripción completada y acta enviada por email" if result['email_sent'] else "Transcripción completada, pero error enviando email"
         }
-        
-    except Exception as e:
-        logger.error(f"Error procesando audio: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error procesando audio: {str(e)}")
-    finally:
-        # Limpiar archivo temporal
-        logger.info("Limpiando archivo temporal...")
-        _cleanup_temp_file(temp_file_path)
-        logger.info("Proceso completado")
