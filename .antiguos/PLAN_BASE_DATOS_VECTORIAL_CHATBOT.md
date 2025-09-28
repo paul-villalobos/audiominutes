@@ -2,7 +2,7 @@
 
 ## 📋 Resumen Ejecutivo
 
-Este documento describe el plan completo para implementar un sistema de base de datos vectorial con chatbot que permita a los usuarios consultar sus transcripciones organizadas por cliente. El sistema utiliza **PostgreSQL para catálogo de reuniones** y **ChromaDB para búsqueda semántica de chunks**, combinando lo mejor de ambos mundos.
+Este documento describe el plan completo para implementar un sistema de base de datos vectorial con chatbot que permita a los usuarios consultar sus transcripciones organizadas por cliente. El sistema utiliza **SOLO ChromaDB** con persistencia local para almacenamiento vectorial y metadatos, eliminando completamente PostgreSQL para máxima simplicidad.
 
 ### Objetivos Principales
 
@@ -10,38 +10,11 @@ Este documento describe el plan completo para implementar un sistema de base de 
 - ✅ Aislamiento completo de datos por usuario y cliente
 - ✅ Interfaz intuitiva de chatbot por cliente
 - ✅ Integración seamless con el pipeline existente
-- ✅ **Arquitectura híbrida**: PostgreSQL (catálogo) + ChromaDB (búsqueda semántica)
+- ✅ **Arquitectura simplificada**: Solo ChromaDB, sin PostgreSQL
 
-## 📊 Esquema de Datos Híbrido
+## 📊 Esquema de Datos Simplificado
 
-### Tabla SQL: meetings (Catálogo de Reuniones)
-
-```sql
-CREATE TABLE meetings (
-    meeting_id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    client_id UUID NOT NULL REFERENCES clients(client_id),
-    user_id UUID NOT NULL REFERENCES users(user_id),
-    transcript_id UUID UNIQUE NOT NULL,     -- clave de unión con chunks en ChromaDB
-    meeting_date TIMESTAMP NOT NULL,
-    duration_minutes NUMERIC(6,2),
-    filename TEXT,
-
-    topics JSONB,
-    summary TEXT,
-    sentiment VARCHAR(20),
-    importance_distribution JSONB,
-
-    word_count_total INT,
-    assembly_cost NUMERIC(10,4),
-    openai_cost NUMERIC(10,4),
-
-    status VARCHAR(20) DEFAULT 'completed', -- pending, in_progress, error
-    created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW()
-);
-```
-
-### Estructura en ChromaDB (Solo para Chunks)
+### Estructura en ChromaDB
 
 ```json
 {
@@ -62,12 +35,16 @@ CREATE TABLE meetings (
       "metadata": {
         "user_email": "consultor@empresa.com",
         "client_id": "uuid_cliente_abc",
-        "transcript_id": "uuid_transcripcion",  -- clave de unión con tabla meetings
+        "client_name": "Empresa ABC S.A.",
+        "transcript_id": "uuid_transcripcion",
+        "filename": "reunion_presupuesto.mp3",
         "chunk_index": 1,
         "timestamp_start": "00:05:30",
         "timestamp_end": "00:07:45",
         "speaker": "Juan",
         "created_at": "2024-01-15T10:30:00Z",
+        "meeting_date": "2024-01-15T10:30:00Z",
+        "topics": ["presupuesto", "recursos"],
         "importance_score": 0.8
       }
     }
@@ -75,60 +52,26 @@ CREATE TABLE meetings (
 }
 ```
 
-### Flujo de Retrieval Híbrido
+### Metadatos Enriquecidos por Cliente
 
 ```json
 {
-  "retrieval_flow": {
-    "step_1_client_selection": {
-      "description": "Usuario selecciona cliente",
-      "data_source": "PostgreSQL - tabla meetings",
-      "query": "SELECT DISTINCT client_id, COUNT(*) as meeting_count FROM meetings WHERE user_id = ? GROUP BY client_id"
-    },
-
-    "step_2_meeting_selection": {
-      "description": "Usuario selecciona reunión específica",
-      "data_source": "PostgreSQL - tabla meetings",
-      "query": "SELECT * FROM meetings WHERE client_id = ? AND user_id = ? ORDER BY meeting_date DESC",
-      "result": "Lista de reuniones con metadata completa"
-    },
-
-    "step_3_chunk_search": {
-      "description": "Búsqueda semántica en chunks",
-      "data_source": "ChromaDB",
-      "filter_options": {
-        "specific_meeting": "WHERE transcript_id = ?",
-        "all_client_meetings": "WHERE client_id = ?",
-        "date_range": "WHERE meeting_date BETWEEN ? AND ?"
-      }
-    }
-  }
-}
-```
-
-### Metadatos Enriquecidos por Cliente (Desde SQL)
-
-```json
-{
-  "client_context_from_sql": {
+  "client_context": {
     "client_id": "uuid_cliente_abc",
     "client_name": "Empresa ABC S.A.",
-    "meeting_statistics": {
+    "extracted_insights": {
+      "key_topics": ["presupuesto", "recursos", "timeline", "riesgos"],
+      "decision_patterns": ["consenso", "jerárquico"],
+      "communication_style": ["formal", "directo"],
+      "pain_points": ["recursos limitados", "timeline ajustado"],
+      "success_factors": ["comunicación clara", "planificación detallada"]
+    },
+    "meeting_summary": {
       "total_meetings": 12,
       "total_duration_hours": 8.5,
       "average_meeting_duration": 42.5,
       "last_meeting": "2024-01-15T10:30:00Z",
-      "total_cost": 15.5,
-      "average_cost_per_meeting": 1.29
-    },
-    "topics_analysis": {
-      "most_common_topics": ["presupuesto", "recursos", "timeline"],
-      "sentiment_distribution": {
-        "positive": 0.6,
-        "neutral": 0.3,
-        "negative": 0.1
-      },
-      "importance_trends": "Creciente en últimos 3 meses"
+      "next_scheduled": "2024-01-22T14:00:00Z"
     }
   }
 }
@@ -198,97 +141,80 @@ CREATE TABLE meetings (
 
 ## 🤖 Sistema de Chatbot por Cliente
 
-### Flujo de Sesión de Chatbot Híbrido
+### Flujo de Sesión de Chatbot
 
 ```mermaid
 graph TD
     A[Usuario ingresa email] --> B[Validar usuario existe]
-    B --> C[Mostrar lista de clientes desde SQL]
+    B --> C[Mostrar lista de clientes]
     C --> D[Usuario selecciona cliente]
-    D --> E[Mostrar reuniones del cliente desde SQL]
-    E --> F[Usuario selecciona reunión o 'todas']
-    F --> G[Crear sesión chatbot específica]
-    G --> H[Cargar colección ChromaDB específica]
-    H --> I[Usuario hace consulta]
-    I --> J[Búsqueda en ChromaDB con filtros]
-    J --> K[Generar respuesta contextual]
-    K --> L[Respuesta con contexto del cliente]
+    D --> E[Crear sesión chatbot específica]
+    E --> F[Cargar colección ChromaDB específica]
+    F --> G[Usuario hace consulta]
+    G --> H[Búsqueda en colección específica]
+    H --> I[Generar respuesta contextual]
+    I --> J[Respuesta con contexto del cliente]
 
-    M[Cambiar reunión] --> E
-    N[Cambiar cliente] --> C
-    O[Cambiar usuario] --> A
+    K[Cambiar cliente] --> D
+    L[Cambiar usuario] --> A
 ```
 
 ### Tipos de Consultas Soportadas
 
-#### 1. Consultas Específicas de Reunión
+#### 1. Consultas Específicas del Cliente
 
-- "¿Qué se dijo sobre el presupuesto en la reunión del 15 de enero?"
+- "¿Qué se dijo sobre el presupuesto con ABC?"
 - "¿Cuáles fueron las decisiones en la última reunión con ABC?"
-- "¿Qué preocupaciones se mencionaron en la reunión de presupuesto?"
+- "¿Qué preocupaciones tiene ABC sobre el proyecto?"
 
-#### 2. Consultas por Cliente (Todas las Reuniones)
-
-- "¿Qué se dijo sobre el presupuesto con ABC en todas las reuniones?"
-- "¿Cómo ha evolucionado el proyecto con ABC?"
-- "¿Cuáles son los patrones comunes en las reuniones con ABC?"
-
-#### 3. Consultas Comparativas (Mismo Usuario)
+#### 2. Consultas Comparativas (Mismo Usuario)
 
 - "¿Cómo difiere el enfoque de ABC vs XYZ?"
 - "¿Qué estrategias funcionaron mejor con ABC?"
 - "¿Cuáles son los patrones comunes entre mis clientes?"
 
-#### 4. Consultas Analíticas con Metadata SQL
+#### 3. Consultas Analíticas por Cliente
 
 - "Resume la evolución del proyecto con ABC"
 - "¿Cuáles son los riesgos principales con ABC?"
 - "¿Qué acciones pendientes tengo con ABC?"
-- "¿Cuánto hemos gastado en procesamiento con ABC?"
 
 ## 🔍 Sistema de Búsqueda Avanzado
 
-### Estrategia de Retrieval Híbrida
+### Estrategia de Retrieval
 
 ```json
 {
-  "hybrid_search_strategy": {
-    "sql_catalog_query": {
-      "weight": 0.3,
-      "description": "Búsqueda en catálogo de reuniones",
-      "implementation": "PostgreSQL queries",
-      "use_cases": [
-        "listar reuniones",
-        "filtrar por fecha",
-        "estadísticas de cliente"
-      ]
-    },
+  "search_strategy": {
     "vector_similarity": {
-      "weight": 0.5,
-      "description": "Búsqueda semántica en chunks",
-      "implementation": "ChromaDB cosine similarity",
-      "use_cases": ["búsqueda semántica", "encontrar contenido similar"]
+      "weight": 0.7,
+      "description": "Búsqueda semántica principal",
+      "implementation": "ChromaDB cosine similarity"
+    },
+    "keyword_matching": {
+      "weight": 0.2,
+      "description": "Coincidencia exacta de términos",
+      "implementation": "Filtros de metadata"
     },
     "metadata_filtering": {
-      "weight": 0.2,
-      "description": "Filtros por transcript_id, client_id",
-      "implementation": "ChromaDB where clauses",
-      "use_cases": ["filtrar por reunión específica", "filtrar por cliente"]
+      "weight": 0.1,
+      "description": "Filtros por fecha, participante, etc.",
+      "implementation": "ChromaDB where clauses"
     }
   }
 }
 ```
 
-### Ranking de Relevancia Híbrido
+### Ranking de Relevancia
 
 ```json
 {
-  "hybrid_relevance_scoring": {
-    "sql_meeting_relevance": "Relevancia de la reunión (fecha, importancia)",
+  "relevance_scoring": {
     "semantic_similarity": "Similitud vectorial ChromaDB (0-1)",
-    "chunk_importance": "Score de importancia del chunk",
-    "temporal_relevance": "Proximidad temporal de la reunión",
-    "client_context": "Relevancia contextual del cliente"
+    "keyword_density": "Frecuencia de términos clave",
+    "temporal_relevance": "Proximidad temporal",
+    "speaker_relevance": "Relevancia del hablante",
+    "importance_score": "Score de importancia del chunk"
   }
 }
 ```
@@ -314,46 +240,25 @@ graph TD
           "last_meeting": "Hace 2 días",
           "total_meetings": "12 reuniones",
           "total_duration": "8.5 horas",
-          "total_cost": "$15.50",
           "status": "Proyecto activo"
         }
       ],
       "actions": ["Iniciar chat", "Ver historial", "Agregar cliente"]
     },
 
-    "meeting_selection": {
-      "header": "Reuniones con Empresa ABC S.A.",
-      "meeting_list": [
-        {
-          "meeting_date": "15 de enero, 2024",
-          "duration": "45 minutos",
-          "topics": ["presupuesto", "recursos"],
-          "sentiment": "positive",
-          "cost": "$1.25",
-          "status": "completed"
-        }
-      ],
-      "actions": [
-        "Seleccionar reunión",
-        "Ver todas las reuniones",
-        "Filtrar por fecha"
-      ]
-    },
-
     "chatbot_session": {
-      "header": "Chat con Empresa ABC S.A. - Reunión del 15 enero",
+      "header": "Chat con Empresa ABC S.A.",
       "context_info": {
         "client_name": "Empresa ABC S.A.",
-        "meeting_date": "15 de enero, 2024",
-        "duration": "45 minutos",
-        "topics": ["presupuesto", "recursos"],
-        "scope": "reunión específica" // o "todas las reuniones"
+        "project_type": "Desarrollo de Software",
+        "relationship_duration": "6 meses",
+        "last_meeting": "15 de enero, 2024"
       },
       "chat_interface": {
         "suggestions": [
-          "¿Qué se discutió sobre el presupuesto?",
-          "¿Cuáles fueron las decisiones tomadas?",
-          "¿Qué preocupaciones se mencionaron?"
+          "¿Qué se discutió en la última reunión?",
+          "¿Cuáles son los próximos pasos con ABC?",
+          "¿Qué preocupaciones tiene ABC?"
         ]
       }
     }
@@ -361,20 +266,20 @@ graph TD
 }
 ```
 
-## 🏗️ Arquitectura Técnica Híbrida
+## 🏗️ Arquitectura Técnica Simplificada
 
 ### Estructura de Servicios
 
 ```json
 {
-  "hybrid_service_architecture": {
+  "service_architecture": {
     "user_service": {
       "responsibilities": [
         "Validar usuarios existentes",
         "Gestionar sesiones de usuario",
         "Control de acceso"
       ],
-      "storage": "PostgreSQL - tabla users"
+      "storage": "ChromaDB metadata"
     },
 
     "client_service": {
@@ -383,18 +288,7 @@ graph TD
         "Crear/actualizar información de cliente",
         "Validar permisos de acceso"
       ],
-      "storage": "PostgreSQL - tabla clients"
-    },
-
-    "meeting_service": {
-      "responsibilities": [
-        "Crear registros de reuniones",
-        "Actualizar estado y costos",
-        "Listar reuniones por cliente",
-        "Recuperar metadata de reuniones",
-        "Gestionar estados (pending, in_progress, completed, error)"
-      ],
-      "storage": "PostgreSQL - tabla meetings"
+      "storage": "ChromaDB metadata"
     },
 
     "vectorization_service": {
@@ -402,20 +296,18 @@ graph TD
         "Vectorizar transcripciones por cliente",
         "Crear colecciones específicas",
         "Gestionar embeddings contextuales",
-        "Mantener persistencia ChromaDB",
-        "Sincronizar con tabla meetings"
+        "Mantener persistencia ChromaDB"
       ],
-      "storage": "ChromaDB collections + PostgreSQL meetings"
+      "storage": "ChromaDB collections"
     },
 
     "chatbot_service": {
       "responsibilities": [
-        "Procesar consultas por cliente/reunión",
+        "Procesar consultas por cliente",
         "Generar respuestas contextuales",
-        "Mantener historial de sesión",
-        "Combinar datos SQL + ChromaDB"
+        "Mantener historial de sesión"
       ],
-      "storage": "PostgreSQL + ChromaDB"
+      "storage": "ChromaDB queries"
     }
   }
 }
@@ -461,35 +353,38 @@ graph TD
         "timestamp_end",
         "created_at"
       ],
-      "optional_fields": ["speaker", "importance_score"],
-      "note": "Metadata compleja (topics, sentiment, costs) se almacena en PostgreSQL tabla meetings"
+      "optional_fields": [
+        "speaker",
+        "importance_score",
+        "topics",
+        "sentiment",
+        "word_count",
+        "assembly_cost",
+        "openai_cost"
+      ]
     }
   }
 }
 ```
 
-## 🔄 Pipeline de Procesamiento Híbrido
+## 🔄 Pipeline de Procesamiento Simplificado
 
-### Flujo de Procesamiento Completo
+### Flujo de Vectorización por Cliente
 
 ```mermaid
 graph TD
     A[Audio Upload + Email] --> B[Identificar/crear cliente]
-    B --> C[Crear registro en tabla meetings - status: pending]
-    C --> D[Transcripción AssemblyAI]
-    D --> E[Generación Acta OpenAI]
-    E --> F[Actualizar tabla meetings con metadata]
-    F --> G[División en Chunks]
-    G --> H[Generación Embeddings]
-    H --> I[Almacenar chunks en ChromaDB con transcript_id]
-    I --> J[Marcar status: completed en tabla meetings]
-    J --> K[Enviar email con acta]
+    B --> C[Transcripción AssemblyAI]
+    C --> D[Generación Acta OpenAI]
+    D --> E[División en Chunks]
+    E --> F[Generación Embeddings]
+    F --> G[Almacenar en colección ChromaDB específica]
+    G --> H[Actualizar metadatos del cliente]
+    H --> I[Enviar email con acta]
 
-    L[Cliente no identificado] --> M[Solicitar información cliente]
-    M --> N[Crear nuevo cliente en PostgreSQL]
-    N --> B
-
-    O[Error en procesamiento] --> P[Marcar status: error en tabla meetings]
+    J[Cliente no identificado] --> K[Solicitar información cliente]
+    K --> L[Crear nuevo cliente]
+    L --> B
 ```
 
 ### Identificación Automática de Cliente
@@ -517,7 +412,7 @@ graph TD
     "manual_assignment": {
       "when_needed": "Cliente no identificado automáticamente",
       "ui_component": "Selector de cliente en upload",
-      "fallback": "Crear nuevo cliente en PostgreSQL"
+      "fallback": "Crear nuevo cliente"
     }
   }
 }
@@ -659,107 +554,86 @@ graph TD
 }
 ```
 
-## 🚀 Plan de Implementación Híbrido (10 días)
+## 🚀 Plan de Implementación Simplificado (8 días)
 
-### **Fase 1: Configuración Base** (2 días)
+### **Fase 1: Configuración ChromaDB** (1 día)
 
-#### Día 1: Infraestructura PostgreSQL
-
-- [ ] Crear tabla meetings en PostgreSQL
-- [ ] Configurar relaciones con tablas existentes
-- [ ] Tests básicos de CRUD de reuniones
-- [ ] Migración de datos existentes si aplica
-
-#### Día 2: Configuración ChromaDB
+#### Día 1: Infraestructura Base
 
 - [ ] Instalar ChromaDB con persistencia
 - [ ] Configurar directorio de persistencia
 - [ ] Crear estructura de colecciones
 - [ ] Tests básicos de almacenamiento y recuperación
 
-### **Fase 2: Servicios Base** (3 días)
+### **Fase 2: Servicios Base** (2-3 días)
 
-#### Día 3: Servicios de Usuario y Cliente
+#### Día 2-3: Servicios de Usuario y Cliente
 
 - [ ] Crear UserService (validación de emails)
 - [ ] Crear ClientService (identificación de clientes)
 - [ ] Implementar detección automática de cliente
 - [ ] Tests de servicios base
 
-#### Día 4: Servicio de Reuniones
-
-- [ ] Crear MeetingService (CRUD de reuniones)
-- [ ] Implementar gestión de estados
-- [ ] Configurar cálculo de costos
-- [ ] Tests de servicios de reuniones
-
-#### Día 5: Servicio de Vectorización
+#### Día 4: Servicio de Vectorización
 
 - [ ] Crear VectorizationService
 - [ ] Implementar chunking inteligente
 - [ ] Configurar generación de embeddings
-- [ ] Sincronización con tabla meetings
 - [ ] Tests de vectorización
 
-### **Fase 3: Chatbot** (3 días)
+### **Fase 3: Chatbot** (2-3 días)
 
-#### Día 6-7: Servicio de Chatbot
+#### Día 5-6: Servicio de Chatbot
 
 - [ ] Crear ChatbotService
-- [ ] Implementar búsqueda híbrida (SQL + ChromaDB)
+- [ ] Implementar búsqueda vectorial
 - [ ] Generación de respuestas contextuales
 - [ ] Tests de chatbot
 
-#### Día 8: API y Frontend
+#### Día 7: API y Frontend
 
 - [ ] Crear endpoints de chat
 - [ ] Implementar interfaz de usuario
 - [ ] Manejo de errores
 - [ ] Tests de integración
 
-### **Fase 4: Integración y Pulimiento** (2 días)
+### **Fase 4: Integración y Pulimiento** (1 día)
 
-#### Día 9-10: Integración Final
+#### Día 8: Integración Final
 
 - [ ] Integrar con pipeline existente
 - [ ] Tests end-to-end
 - [ ] Optimizaciones de performance
 - [ ] Documentación final
 
-## 🔧 Estructura de Archivos Híbrida
+## 🔧 Estructura de Archivos Simplificada
 
 ```
 src/voxcliente/
 ├── services/
 │   ├── user_service.py              # Nuevo
 │   ├── client_service.py            # Nuevo
-│   ├── meeting_service.py           # Nuevo - CRUD de reuniones
 │   ├── vectorization_service.py     # Nuevo
 │   └── chatbot_service.py           # Nuevo
 ├── api.py                           # Modificar
 ├── config.py                        # Modificar
-├── chroma_db/                       # Datos persistentes (creado automáticamente)
-│   ├── chroma.sqlite3               # Base de datos ChromaDB
-│   ├── index/                       # Índices vectoriales
-│   └── collections/                 # Colecciones por usuario/cliente
-│       ├── user1_client1/
-│       ├── user1_client2/
-│       └── user2_client1/
-└── database/                        # Nuevo - Migraciones SQL
-    ├── migrations/
-    │   └── 001_create_meetings_table.sql
-    └── schema.sql
+└── chroma_db/                       # Datos persistentes (creado automáticamente)
+    ├── chroma.sqlite3               # Base de datos ChromaDB
+    ├── index/                       # Índices vectoriales
+    └── collections/                 # Colecciones por usuario/cliente
+        ├── user1_client1/
+        ├── user1_client2/
+        └── user2_client1/
 ```
 
-## 📋 Configuración de Dependencias Híbrida
+## 📋 Configuración de Dependencias Simplificada
 
-### Nuevas Dependencias (Solo 1)
+### Nuevas Dependencias (Solo 2)
 
 ```toml
 [tool.poetry.dependencies]
 chromadb = "^0.4.0"              # Nueva dependencia
 openai = "^1.107.3"              # Ya existe, verificar versión
-sqlalchemy = "^2.0.0"            # Ya existe para PostgreSQL
 ```
 
 ### Variables de Entorno Adicionales
@@ -779,17 +653,15 @@ CHROMA_BATCH_SIZE=100
 CHROMA_CACHE_SIZE=1GB
 ```
 
-## 🎯 Criterios de Éxito Híbridos
+## 🎯 Criterios de Éxito Simplificados
 
 ### Métricas Técnicas
 
 - ✅ Búsqueda vectorial < 100ms
-- ✅ Consultas SQL < 50ms
 - ✅ Respuesta chatbot < 2 segundos
 - ✅ Precisión de respuestas > 80%
 - ✅ Persistencia de datos > 99.9%
 - ✅ Disponibilidad > 99%
-- ✅ Sincronización SQL-ChromaDB > 99.9%
 
 ### Métricas de Usuario
 
@@ -810,15 +682,13 @@ CHROMA_CACHE_SIZE=1GB
 ### Privacidad y Seguridad
 
 - Solo usuarios pueden consultar sus propias transcripciones
-- Filtrado por email en todas las consultas SQL y ChromaDB
+- Filtrado por email en todas las consultas
 - No almacenamiento de consultas del chatbot
 - Aislamiento completo entre usuarios y clientes
-- PostgreSQL garantiza integridad referencial
-- ChromaDB con persistencia local garantiza control total de datos
+- Persistencia local garantiza control total de datos
 
 ### Performance
 
-- PostgreSQL optimizado para consultas de catálogo
 - ChromaDB con persistencia es muy rápido para consultas locales
 - Embeddings se generan una sola vez por transcripción
 - Respuestas del chatbot en < 3 segundos
@@ -827,40 +697,37 @@ CHROMA_CACHE_SIZE=1GB
 
 ### Escalabilidad
 
-- PostgreSQL puede manejar millones de registros de reuniones
 - ChromaDB puede manejar miles de transcripciones por cliente
-- Arquitectura híbrida preparada para crecimiento horizontal
-- Backup y recuperación por colección y tabla
+- Fácil migración a Pinecone cuando sea necesario
+- Arquitectura preparada para crecimiento horizontal
+- Backup y recuperación por colección
 - Persistencia garantiza durabilidad de datos
 
 ## 🔄 Migración y Rollback
 
 ### Estrategia de Migración
 
-1. **Fase 1**: Crear tabla meetings en PostgreSQL
-2. **Fase 2**: Implementar ChromaDB sin afectar pipeline existente
-3. **Fase 3**: Migrar datos existentes a tabla meetings
-4. **Fase 4**: Vectorizar transcripciones existentes
-5. **Fase 5**: Activar funcionalidad de chatbot híbrido
-6. **Fase 6**: Monitoreo y optimización
+1. **Fase 1**: Implementar ChromaDB sin afectar pipeline existente
+2. **Fase 2**: Vectorizar transcripciones existentes
+3. **Fase 3**: Activar funcionalidad de chatbot
+4. **Fase 4**: Monitoreo y optimización
 
 ### Plan de Rollback
 
 - Mantener pipeline original intacto
-- Desactivar funcionalidad híbrida sin afectar transcripción
-- Restaurar desde backup PostgreSQL y ChromaDB si es necesario
+- Desactivar funcionalidad vectorial sin afectar transcripción
+- Restaurar desde backup ChromaDB si es necesario
 - Rollback gradual por cliente si hay problemas
 
 ## 📚 Documentación Adicional
 
 ### Para Desarrolladores
 
-- [ ] Guía de configuración PostgreSQL + ChromaDB
-- [ ] Documentación de APIs híbridas
+- [ ] Guía de configuración ChromaDB con persistencia
+- [ ] Documentación de APIs
 - [ ] Guía de troubleshooting
 - [ ] Mejores prácticas de seguridad
 - [ ] Guía de backup y recuperación
-- [ ] Guía de sincronización SQL-ChromaDB
 
 ### Para Usuarios
 
@@ -869,28 +736,28 @@ CHROMA_CACHE_SIZE=1GB
 - [ ] Tutorial de identificación de clientes
 - [ ] Guía de mejores consultas
 
-## 🎯 Ventajas de la Arquitectura Híbrida
+## 🎯 Ventajas de la Arquitectura Simplificada
 
 ### Beneficios Técnicos
 
-- ✅ **Optimización por uso**: PostgreSQL para catálogo, ChromaDB para búsqueda semántica
-- ✅ **Integridad referencial**: PostgreSQL garantiza consistencia de datos
-- ✅ **Performance superior**: Cada tecnología en su mejor caso de uso
-- ✅ **Escalabilidad**: PostgreSQL para millones de registros, ChromaDB para vectores
-- ✅ **Flexibilidad**: Fácil agregar nuevas funcionalidades de catálogo
+- ✅ **50% menos tiempo de implementación** (8 días vs 16 días)
+- ✅ **Arquitectura más simple** y mantenible
+- ✅ **Menos dependencias** (2 vs 6+ paquetes)
+- ✅ **Mejor performance** para búsquedas vectoriales
+- ✅ **Cero configuración** de base de datos externa
 - ✅ **Persistencia garantizada** con backup automático
 
 ### Beneficios de Negocio
 
-- ✅ **Mejor experiencia de usuario**: Navegación por reuniones + búsqueda semántica
-- ✅ **Análisis avanzado**: Estadísticas, costos, tendencias por cliente
-- ✅ **Menor riesgo técnico**: Tecnologías probadas y estables
-- ✅ **Implementación controlada**: Migración gradual sin afectar funcionalidad existente
-- ✅ **ROI medible**: Tracking de costos y beneficios por cliente
+- ✅ **Menor costo de desarrollo**
+- ✅ **Menor costo de mantenimiento**
+- ✅ **Menor riesgo técnico**
+- ✅ **Implementación más rápida**
+- ✅ **Mejor experiencia de usuario**
 
 ---
 
 **Última actualización**: $(date)  
-**Versión del plan**: 3.0 (Híbrida)  
+**Versión del plan**: 2.0 (Simplificada)  
 **Compatible con**: VoxCliente Backend v0.1.0+  
-**Estado**: Listo para implementación híbrida PostgreSQL + ChromaDB
+**Estado**: Listo para implementación simplificada
