@@ -377,18 +377,8 @@ document.addEventListener("DOMContentLoaded", function () {
       notification.style.opacity = "1";
     }, 100);
 
-    // Auto-cerrar después de 8 segundos
-    setTimeout(() => {
-      overlay.style.opacity = "0";
-      notification.style.transform = "translate(-50%, -50%) scale(0.75)";
-      notification.style.opacity = "0";
-      setTimeout(() => {
-        if (document.body.contains(overlay)) document.body.removeChild(overlay);
-        if (document.body.contains(notification))
-          document.body.removeChild(notification);
-        document.body.classList.remove("notification-open");
-      }, 300);
-    }, 8000);
+    // La notificación permanece visible hasta que el usuario la cierre manualmente
+    // Se eliminó el auto-cierre automático para que el usuario pueda leer la confirmación
   }
 
   // Initialize form validation
