@@ -102,7 +102,6 @@ def create_app() -> FastAPI:
     # Serve index.html at root
     @app.get("/")
     async def read_index():
-        logger.info("Sirviendo página principal")
         try:
             return FileResponse("src/voxcliente/static/index.html")
         except Exception as e:

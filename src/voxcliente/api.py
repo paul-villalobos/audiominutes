@@ -108,22 +108,7 @@ def _process_audio_pipeline(temp_file_path: str, email: str, filename: str) -> d
 @router.get("/health")
 async def health_check():
     """Simple health check endpoint."""
-    try:
-        return {
-            "status": "healthy",
-            "app": settings.app_name,
-            "version": settings.app_version,
-            "debug": settings.debug,
-            "env_vars_loaded": {
-                "assemblyai": bool(settings.assemblyai_api_key),
-                "openai": bool(settings.openai_api_key),
-                "resend": bool(settings.resend_api_key),
-                "posthog": bool(settings.posthog_api_key)
-            }
-        }
-    except Exception as e:
-        logger.error(f"Error en health check: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Health check failed: {str(e)}")
+    return {"status": "healthy"}
 
 
 @router.get("/download/{file_type}/{file_id}")
@@ -142,30 +127,15 @@ async def download_file(file_type: str, file_id: str):
     try:
         # Validar tipo de archivo
         if file_type not in ["acta", "transcript"]:
-            raise HTTPException(status_code=400, detail="Tipo de archivo no válido. Use 'acta' o 'transcript'")
+            raise HTTPException(status_code=400, detail="Tipo de archivo no válido")
         
-        # Obtener información del archivo
-        file_info = file_manager.get_file_info(file_id)
-        if not file_info:
-            raise HTTPException(status_code=404, detail="Archivo no encontrado o expirado")
-        
-        # Verificar que el tipo coincida
-        if file_info["file_type"] != file_type:
-            raise HTTPException(status_code=400, detail="Tipo de archivo no coincide con el ID")
-        
-        # Obtener ruta del archivo
+        # Obtener ruta del archivo directamente
         file_path = file_manager.get_file_path(file_id)
         if not file_path:
-            raise HTTPException(status_code=404, detail="Archivo no encontrado en disco")
+            raise HTTPException(status_code=404, detail="Archivo no encontrado")
         
-        # Generar nombre de archivo para descarga
-        original_filename = file_info["original_filename"]
-        clean_filename = original_filename.replace('.', '_')
-        
-        if file_type == "acta":
-            download_filename = f"Acta_Reunion_{clean_filename}.docx"
-        else:
-            download_filename = f"Transcripcion_{clean_filename}.docx"
+        # Nombre simple de archivo
+        download_filename = f"{file_type}.docx"
         
         
         # Retornar archivo para descarga
