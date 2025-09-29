@@ -1,19 +1,16 @@
 """Health check endpoints - Simplified for MVP."""
 
 import logging
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
-from fastapi.responses import FileResponse
-from typing import Optional
 import tempfile
 import os
-from datetime import datetime
 from contextlib import asynccontextmanager
+
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
+from fastapi.responses import FileResponse
 
 from voxcliente.config import settings
 from voxcliente.utils import validate_audio_file, validate_email
-from voxcliente.services import assemblyai_service, openai_service, resend_email_service
-from voxcliente.services.file_manager import file_manager
-from voxcliente.services.analytics_service import analytics_service
+from voxcliente.services import assemblyai_service, openai_service, resend_email_service, file_manager, analytics_service
 
 logger = logging.getLogger(__name__)
 
@@ -37,12 +34,6 @@ async def temp_file_context(file: UploadFile):
                 os.unlink(temp_path)
             except:
                 pass
-
-
-
-
-
-
 
 
 def _process_audio_pipeline(temp_file_path: str, email: str, filename: str) -> dict:
@@ -156,10 +147,6 @@ async def download_file(file_type: str, file_id: str):
         raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
 
-
-
-
-
 @router.post("/transcribe")
 async def transcribe_audio(
     request: Request,
@@ -181,9 +168,8 @@ async def transcribe_audio(
             raise HTTPException(status_code=400, detail=file_error)
         
         
-        # Tracking inicial
+        # PostHog disponible para tracking final
         posthog = request.app.state.posthog
-        analytics_service.track_form_submit(posthog, email, file.filename, file.size)
     except Exception as e:
         logger.error(f"Error en validación inicial: {str(e)}", exc_info=True)
         raise

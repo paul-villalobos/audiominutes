@@ -10,26 +10,6 @@ logger = logging.getLogger(__name__)
 class AnalyticsService:
     """Service for tracking user analytics events."""
     
-    def track_form_submit(self, posthog, email: str, filename: str, file_size: int) -> None:
-        """Track initial form submission."""
-        if not posthog:
-            logger.warning("PostHog no disponible, saltando tracking de form_submit")
-            return
-            
-        try:
-            posthog.capture(
-                distinct_id=email,
-                event='form_submit',
-                properties={
-                    'filename': filename,
-                    'file_size_mb': round(file_size / 1024 / 1024, 2),
-                    'timestamp': datetime.now().isoformat()
-                }
-            )
-            logger.info("Tracking form_submit enviado a PostHog")
-        except Exception as e:
-            logger.error(f"Error enviando tracking form_submit: {e}")
-    
     def track_acta_generated(self, posthog, email: str, filename: str, file_size: int, 
                            duration_minutes: float, total_cost: float, 
                            cost_breakdown: Dict[str, Any], openai_usage: Dict[str, Any], 

@@ -154,6 +154,16 @@ document.addEventListener("DOMContentLoaded", function () {
       </div>
     `;
 
+    // Identificar usuario en PostHog antes de procesar
+    if (typeof posthog !== "undefined") {
+      posthog.identify(email);
+      posthog.capture("form_submit", {
+        filename: file.name,
+        file_size_mb: Math.round((file.size / 1024 / 1024) * 100) / 100,
+        timestamp: new Date().toISOString(),
+      });
+    }
+
     try {
       const formData = new FormData();
       formData.append("email", email);
