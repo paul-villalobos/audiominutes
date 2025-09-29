@@ -13,6 +13,7 @@ from voxcliente.config import settings
 from voxcliente.utils import validate_audio_file, validate_email
 from voxcliente.services import assemblyai_service, openai_service, resend_email_service
 from voxcliente.services.file_manager import file_manager
+from voxcliente.services.analytics_service import analytics_service
 
 logger = logging.getLogger(__name__)
 
@@ -40,39 +41,6 @@ async def temp_file_context(file: UploadFile):
 
 
 
-def _track_form_submit(posthog, email: str, filename: str, file_size: int) -> None:
-    """Tracking inicial del formulario."""
-    posthog.capture(
-        distinct_id=email,
-        event='form_submit',
-        properties={
-            'filename': filename,
-            'file_size_mb': round(file_size / 1024 / 1024, 2),
-            'timestamp': datetime.now().isoformat()
-        }
-    )
-
-
-def _track_acta_generated(posthog, email: str, filename: str, file_size: int, 
-                         duration_minutes: float, total_cost: float, 
-                         cost_breakdown: dict, openai_usage: dict, 
-                         assemblyai_usage: dict, email_sent: bool) -> None:
-    """Tracking final de acta generada."""
-    posthog.capture(
-        distinct_id=email,
-        event='acta_generated',
-        properties={
-            'filename': filename,
-            'duration_minutes': duration_minutes,
-            'file_size_mb': round(file_size / 1024 / 1024, 2),
-            'cost_usd': total_cost,
-            'cost_breakdown': cost_breakdown,
-            'openai_usage': openai_usage,
-            'assemblyai_usage': assemblyai_usage,
-            'email_sent': email_sent,
-            'timestamp': datetime.now().isoformat()
-        }
-    )
 
 
 
@@ -100,13 +68,11 @@ def _process_audio_pipeline(temp_file_path: str, email: str, filename: str) -> d
     # Generar archivos para descarga
     try:
         download_files = resend_email_service.generate_download_files(acta, transcript, filename)
-        logger.info(f"Archivos de descarga generados: {download_files}")
         
         # Limpiar archivos antiguos después de generar nuevos
         try:
             removed_count = file_manager.cleanup_old_files()
             if removed_count > 0:
-                logger.info(f"Limpieza automática: {removed_count} archivos antiguos eliminados")
         except Exception as cleanup_error:
             logger.warning(f"Error en limpieza automática: {cleanup_error}")
             
@@ -141,7 +107,6 @@ def _process_audio_pipeline(temp_file_path: str, email: str, filename: str) -> d
 @router.get("/health")
 async def health_check():
     """Simple health check endpoint."""
-    logger.info("Health check solicitado")
     try:
         return {
             "status": "healthy",
@@ -172,7 +137,6 @@ async def download_file(file_type: str, file_id: str):
     Returns:
         Archivo Word para descarga
     """
-    logger.info(f"Solicitud de descarga: {file_type}/{file_id}")
     
     try:
         # Validar tipo de archivo
@@ -202,7 +166,6 @@ async def download_file(file_type: str, file_id: str):
         else:
             download_filename = f"Transcripcion_{clean_filename}.docx"
         
-        logger.info(f"Sirviendo archivo: {file_path} como {download_filename}")
         
         # Retornar archivo para descarga
         return FileResponse(
@@ -222,47 +185,6 @@ async def download_file(file_type: str, file_id: str):
         raise HTTPException(status_code=500, detail=f"Error interno del servidor: {str(e)}")
 
 
-@router.post("/cleanup-files")
-async def cleanup_files():
-    """
-    Limpiar archivos temporales antiguos.
-    Endpoint para mantenimiento del sistema.
-    """
-    logger.info("Iniciando limpieza de archivos temporales")
-    
-    try:
-        removed_count = file_manager.cleanup_old_files()
-        stats = file_manager.get_stats()
-        
-        logger.info(f"Limpieza completada: {removed_count} archivos eliminados")
-        
-        return {
-            "status": "success",
-            "removed_files": removed_count,
-            "current_stats": stats,
-            "message": f"Limpieza completada. {removed_count} archivos eliminados."
-        }
-        
-    except Exception as e:
-        logger.error(f"Error en limpieza de archivos: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error en limpieza: {str(e)}")
-
-
-@router.get("/file-stats")
-async def get_file_stats():
-    """
-    Obtener estadísticas del sistema de archivos temporales.
-    """
-    try:
-        stats = file_manager.get_stats()
-        return {
-            "status": "success",
-            "stats": stats
-        }
-        
-    except Exception as e:
-        logger.error(f"Error obteniendo estadísticas: {str(e)}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Error obteniendo estadísticas: {str(e)}")
 
 
 
@@ -276,7 +198,6 @@ async def transcribe_audio(
     """
     Endpoint simplificado para transcribir audio con AssemblyAI.
     """
-    logger.info(f"Iniciando transcripción para {email}, archivo: {file.filename}, tamaño: {file.size} bytes")
     
     try:
         # Validación inline de email y archivo
@@ -288,42 +209,29 @@ async def transcribe_audio(
         if not is_file_valid:
             raise HTTPException(status_code=400, detail=file_error)
         
-        logger.info("Validación de entradas exitosa")
         
         # Tracking inicial
         posthog = request.app.state.posthog
-        if posthog:
-            _track_form_submit(posthog, email, file.filename, file.size)
-            logger.info("Tracking inicial enviado a PostHog")
-        else:
-            logger.warning("PostHog no disponible, saltando tracking")
+        analytics_service.track_form_submit(posthog, email, file.filename, file.size)
     except Exception as e:
         logger.error(f"Error en validación inicial: {str(e)}", exc_info=True)
         raise
     
     # Procesar con context manager para manejo automático de archivos temporales
     async with temp_file_context(file) as temp_file_path:
-        logger.info(f"Archivo temporal creado: {temp_file_path}")
         
         # Procesar pipeline completo
-        logger.info("Iniciando pipeline de procesamiento...")
         result = _process_audio_pipeline(temp_file_path, email, file.filename)
-        logger.info("Pipeline completado exitosamente")
         
         # Tracking final
-        if posthog:
-            _track_acta_generated(
-                posthog, email, file.filename, file.size,
-                result['duration_minutes'], result['total_cost'],
-                result['cost_breakdown'], result['openai_usage'],
-                result['assemblyai_usage'], result['email_sent']
-            )
-            logger.info("Tracking final enviado a PostHog")
-        else:
-            logger.warning("PostHog no disponible, saltando tracking final")
+        analytics_service.track_acta_generated(
+            posthog, email, file.filename, file.size,
+            result['duration_minutes'], result['total_cost'],
+            result['cost_breakdown'], result['openai_usage'],
+            result['assemblyai_usage'], result['email_sent']
+        )
         
         # Respuesta simplificada
-        logger.info("Preparando respuesta exitosa")
         
         # Preparar URLs de descarga si están disponibles
         download_urls = None
