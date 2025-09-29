@@ -73,6 +73,7 @@ def _process_audio_pipeline(temp_file_path: str, email: str, filename: str) -> d
         try:
             removed_count = file_manager.cleanup_old_files()
             if removed_count > 0:
+                logger.info(f"Se eliminaron {removed_count} archivos antiguos")
         except Exception as cleanup_error:
             logger.warning(f"Error en limpieza automática: {cleanup_error}")
             
