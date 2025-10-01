@@ -13,6 +13,7 @@ from posthog import Posthog
 
 from voxcliente.config import settings
 from voxcliente.api import router as health_router
+from voxcliente.database import get_db_pool, close_db_pool
 
 # Configurar logging detallado para EasyPanel
 logging.basicConfig(
@@ -115,6 +116,26 @@ def create_app() -> FastAPI:
     except Exception as e:
         logger.error(f"Error montando archivos estáticos: {str(e)}")
         raise
+    
+    # Database startup/shutdown events
+    @app.on_event("startup")
+    async def startup_event():
+        """Initialize database connection."""
+        try:
+            await get_db_pool()
+            logger.info("Database connection initialized")
+        except Exception as e:
+            logger.error(f"Error initializing database: {str(e)}")
+            raise
+
+    @app.on_event("shutdown")
+    async def shutdown_event():
+        """Close database connection."""
+        try:
+            await close_db_pool()
+            logger.info("Database connection closed")
+        except Exception as e:
+            logger.error(f"Error closing database: {str(e)}")
     
     logger.info("Aplicación configurada correctamente")
     return app

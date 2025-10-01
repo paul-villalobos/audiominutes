@@ -4,6 +4,8 @@ import logging
 import tempfile
 import os
 from contextlib import asynccontextmanager
+from uuid import uuid4
+from datetime import datetime
 
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Request
 from fastapi.responses import FileResponse
@@ -213,5 +215,19 @@ async def transcribe_audio(
             "openai_usage": result['openai_usage'],
             "assemblyai_usage": result['assemblyai_usage'],
             "download_files": download_urls,
-            "message": "Transcripción completada y acta enviada por email" if result['email_sent'] else "Transcripción completada, pero error enviando email"
+            "message": "Transcripción completada y acta enviada por email" if result['email_sent'] else "Transcripción completada, pero error enviando email",
+            # Datos para guardar después del login
+            "meeting_data": {
+                "transcript_id": str(uuid4()),
+                "assemblyai_id": result['assemblyai_usage']['transcript_id'],
+                "meeting_date": datetime.now(),
+                "filename": file.filename,
+                "duration_minutes": result['duration_minutes'],
+                "topics": result['acta'].get('topics'),
+                "summary": result['acta'].get('summary'),
+                "transcription_cost": result['cost_breakdown']['assemblyai_cost_usd'],
+                "llm_processing_cost": result['cost_breakdown']['openai_cost_usd'],
+                "email_cost": result['cost_breakdown']['email_cost_usd'],
+                "total_acta_cost": result['total_cost']
+            }
         }

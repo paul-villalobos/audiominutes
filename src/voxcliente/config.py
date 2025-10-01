@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     posthog_api_key: str = Field(env="POSTHOG_API_KEY")
     posthog_host: str = Field(default="https://app.posthog.com", env="POSTHOG_HOST")
     
+    # Database
+    database_url: str = Field(env="DATABASE_URL")
+    
     
     # Fixed settings for MVP (no env vars needed)
     max_file_size_mb: int = 500
@@ -58,6 +61,7 @@ try:
     logger.info(f"- OPENAI_API_KEY: {'✓' if settings.openai_api_key else '✗'}")
     logger.info(f"- RESEND_API_KEY: {'✓' if settings.resend_api_key else '✗'}")
     logger.info(f"- POSTHOG_API_KEY: {'✓' if settings.posthog_api_key else '✗'}")
+    logger.info(f"- DATABASE_URL: {'✓' if settings.database_url else '✗'}")
 except Exception as e:
     logger.error(f"Error cargando configuración: {str(e)}", exc_info=True)
     raise
